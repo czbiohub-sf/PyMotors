@@ -33,8 +33,6 @@ class TicStepper(StepperBase):
         elif self._communicationProtocol(type) == self.com_protocol['I2C']:
             self.com = TicI2C(port_params, address)
 
-        self._makeCommandDict()
-        self._makeVariableDict()
         super(TicStepper, self).__init__(input_microsteps,
                                          input_units_per_step,
                                          input_units_per_second)
@@ -105,7 +103,7 @@ class TicStepper(StepperBase):
         self.com.send(command_to_send, data)
 
     def _checkLimitSwitch(self, direction: str):
-        command_to_send = self.command_dic['gSetting']
+        command_to_send = self.command_dict['gSetting']
         if direction == 'fwd':
             data = self.setting_dict['limit_switch_fwd']
         elif direction == 'rev':
@@ -137,9 +135,8 @@ class TicStepper(StepperBase):
         else:
             raise ValueError('Expected protocol type `serial` or `i2c`.')
 
-    def _makeCommandDict(self):  # Entries selected for T500
-        self.command_dict = \
-            {  # 'commandKey': [command_address, operation] # Data
+    command_dict = \
+        {  # 'commandKey': [command_address, operation] # Data
                 'sTargetPosition': [0xE0, 32],  # microsteps
                 'sTargetVelocity': [0xE3, 32],  # microsteps / 10,000s
                 'haltAndSetPosition': [0xEC, 32],  # microsteps
@@ -161,11 +158,10 @@ class TicStepper(StepperBase):
                 'gVariable': [0xA1, 'read'],  # block read
                 'gVarAndClearErrs': [0xA2, 'read'],  # block read
                 'gSetting': [0xA8, 'read'],  # block read
-            }  # documentation: https://www.pololu.com/docs/0J71/8
+        }  # documentation: https://www.pololu.com/docs/0J71/8
 
-    def _makeVariableDict(self):
-        self.variable_dict = \
-            {  # 'variable_key': [offset_address, bits_to_read]
+    variable_dict = \
+        {  # 'variable_key': [offset_address, bits_to_read]
                 'operation_state': [0x00, 8],
                 'misc_flags1': [0x01, 8],
                 'error_status': [0x02, 16],
@@ -196,14 +192,13 @@ class TicStepper(StepperBase):
                 'current_limit': [0x4A, 8],
                 'input_state': [0x4C, 8],
                 'last_driver_error': [0x55, 8],
-            }  # documentation: https://www.pololu.com/docs/0J71/7
+        }  # documentation: https://www.pololu.com/docs/0J71/7
 
-    def _makeSettingDict(self):
-        self.setting_dict = \
-            {
+    setting_dict = \
+        {
                 'limit_switch_fwd': [0x5F, 8],
                 'limit_switch_rev': [0x60, 8],
-            }
+        }
 
 
 class TicSerial(object):
@@ -216,22 +211,25 @@ class TicSerial(object):
             header = [offset]  # Compact protocol
         else:
             header = [0xAA, self.device_number, offset & 0x7F]
-            bytes(header + data)
+        if data is None:
+            return bytes(header)
+        else:
+            return bytes(header + data)
 
     def send(self, operation: list, data=None):
         offset = operation[0]
         protocol = operation[1]
-        if protocol[1] == 'quick':  # Quick write
+        if protocol == 'quick':  # Quick write
             command = self._makeSerialInput(offset)
             read = False
-        elif protocol[1] == 'read':  # Block read
-            command = self._makeSerialInput(offset, data)
+        elif protocol == 'read':  # Block read
+            command = self._makeSerialInput(offset, [data[0]])
             read = True
-        elif protocol[1] == 7:  # 7-bit write
-            data = int(data)
-            command = self._makeSerialInput(offset, list(data))
+        elif protocol == 7:  # 7-bit write
+            data = [int(data)]
+            command = self._makeSerialInput(offset, data)
             read = False
-        elif protocol[1] == 32:  # 32-bit write
+        elif protocol == 32:  # 32-bit write
             data = int(data)
             command = self._makeSerialInput(offset,
                                             [((data >> 7) & 1)

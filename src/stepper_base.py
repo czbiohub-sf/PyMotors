@@ -24,16 +24,16 @@ class StepperBase():
     -----
     If using `units`, set units_per_step before setting units_per_second.
     """
+    _enable_states = {'DISABLED': False, 'ENABLED': True}
+    _unit_type = {'UNKNOWN': -1, 'STEPS': 0, 'UNITS': 1}
 
     def __init__(self, input_microsteps=1, input_units_per_step=1,
                  input_units_per_second=10):
         self.microsteps = input_microsteps
         self.units_per_step = input_units_per_step
         self._steps_per_second = input_units_per_second
-        self._enabled = 0
+        self._enabled = self._enable_states['DISABLED']
         self._target_steps = 0
-        self._enable_states = {'DISABLED': False, 'ENABLED': True}
-        self._unit_type = {'UNKNOWN': -1, 'STEPS': 0, 'UNITS': 1}
 
     @property
     def microsteps(self):
