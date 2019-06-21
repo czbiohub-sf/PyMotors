@@ -7,9 +7,10 @@ setuptools.setup(
     author_email="robert.puccinelli@outlook.com",
     description="Motor utilities for general use.",
     url="https://github.com/czbiohub/PyMotors",
-    packages=setuptools.find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
+    packages=setuptools.find_packages(exclude=["*.tests", "*.tests.*",
+                                               "tests.*", "tests"]),
     install_requires=[
-        'serial',
+        'pyserial',
         'smbus2'
     ],
     test_suite="tests",
