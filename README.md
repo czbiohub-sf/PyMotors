@@ -11,8 +11,8 @@ This repository contains Python classes and/or functions that have been designed
 
 ## Dependencies
 
-TicStepper :: smbus2 (I2C communication, optional)<br>
-TicStepper :: pyserial (Serial communication, optional)<br>
+TicStepper :: smbus2 (I2C communication)<br>
+TicStepper :: pyserial (Serial communication)<br>
 
 ## Installation and Use
 ### Installing Module
