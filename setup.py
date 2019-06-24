@@ -15,7 +15,6 @@ setuptools.setup(
     ],
     test_suite="tests",
     classifiers=[
-        "Programming Language :: Python :: 3",
-        "Your Classifiers :: Go Here",
+        "CZ Biohub :: Bioengineering",
     ],
 )
