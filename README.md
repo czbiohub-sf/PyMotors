@@ -1,7 +1,7 @@
 # PyMotors
 
 ## Introduction
-This repository contains Python classes and/or funcitions that have been designed for various motor control applications in the CZ Biohub Bioengineering team. All utilities support Python 3.7+.
+This repository contains Python classes and/or functions that have been designed for various motor control applications in the CZ Biohub Bioengineering team. All utilities support Python 3.7+.
 
 ## Contents
 * __StepperBase__ - A generalized base class for stepper motors.
@@ -11,20 +11,23 @@ This repository contains Python classes and/or funcitions that have been designe
 
 ## Dependencies
 
-TicStepper :: smbus2 (I2C communication, optional)<br>
-TicStepper :: serial (Serial communication, optional)<br>
+TicStepper :: smbus2 (I2C communication)<br>
+TicStepper :: pyserial (Serial communication)<br>
 
 ## Installation and Use
 ### Installing Module
-1. Download this repository
-2. Create and/or activate a virtual environment in a convenient location with Python3
-3. Install setuptools (pip install setuptools)
-4. Install module (pip install ~/path/to/repo)
+1. Create and/or activate a virtual environment in a convenient location with Python3
+2. Download / clone this repository
+3. Navigate to the base of the repository
+4. Install setuptools (__pip install setuptools__)
+5. Test the module for completeness (__python setup.py test__)
+6. Install module (__pip install .__)
 
 ### Updating Module from Repository
 1. Pull changes from remote repository
 2. Activate virtual environment with previous install
-3. Update module (pip install --upgrade ~/path/to/repo)
+3. Test the module for completeness (__python setup.py test__)
+3. Update module (__pip install . --upgrade__)
 
 ### Using Module
 1. Edit files to include `import pymotors` or a variant such as `from pymotors import TicStepper`
@@ -92,17 +95,12 @@ setup.py allows for modules and their dependencies to be imported via pip. It al
 ```python
 import setuptools
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
-
 setuptools.setup(
     name="example-pkg-your-username",
     version="0.0.1",
     author="Example Author",
     author_email="author@example.com",
     description="A small example package",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
     url="https://github.com/pypa/sampleproject/module",
     packages=setuptools.find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
     install_requires=['docutils>=0.3'],
@@ -140,4 +138,4 @@ Python classes and functions that are tightly coupled should be combined into on
 Each test file in the tests directory contains a battery of tests that are used to evaluate the interface and inner workings of the source code. They should check the interface as it is expected to be used and edge cases where odd behavior might arise.
 
 #### CHANGES.md
-Every pull request must increment the release version and appended a summary of notable changes in the CHANGES file. 
+Every pull request must increment the release version and appended a summary of notable changes in the CHANGES file.
