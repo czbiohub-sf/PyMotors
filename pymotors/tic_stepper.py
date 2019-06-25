@@ -1,5 +1,5 @@
 import warnings
-from src.stepper_base import StepperBase
+from .stepper_base import StepperBase
 try:  # Import I2C module
     from smbus2 import SMBus, i2c_msg
 except ImportError:
