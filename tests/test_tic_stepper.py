@@ -90,20 +90,20 @@ class TicSerial_Utilities(unittest.TestCase):
         self.assertEqual(expected_input, serial_input)
 
     def test_quick_send(self):
-        operation = pymotors.tic_stepper.TicStepper.command_dict['energize']
+        operation = pymotors.tic_stepper.TicStepper._command_dict['energize']
         self.stepper.send(operation)
         expected = self.stepper._makeSerialInput(operation[0])
         self.stepper.port.write.assert_called_with(expected)
 
     def test_7bit_send(self):
-        operation = pymotors.tic_stepper.TicStepper.command_dict['goHome']
+        operation = pymotors.tic_stepper.TicStepper._command_dict['goHome']
         data = 123
         self.stepper.send(operation, data)
         expected = self.stepper._makeSerialInput(operation[0], [data])
         self.stepper.port.write.assert_called_with(expected)
 
     def test_32bit_send(self):
-        operation = pymotors.tic_stepper.TicStepper.command_dict['sMaxSpeed']
+        operation = pymotors.tic_stepper.TicStepper._command_dict['sMaxSpeed']
         data = 123456
         self.stepper.send(operation, data)
         data_formatting = split32BitSer(data)
@@ -111,7 +111,7 @@ class TicSerial_Utilities(unittest.TestCase):
         self.stepper.port.write.assert_called_with(expected)
 
     def test_data_larger_than_7_bit(self):
-        operation = pymotors.tic_stepper.TicStepper.command_dict['goHome']
+        operation = pymotors.tic_stepper.TicStepper._command_dict['goHome']
         data = 1234
         try:
             warned = 0
@@ -121,8 +121,8 @@ class TicSerial_Utilities(unittest.TestCase):
         self.assertEqual(True, warned)
 
     def test_read(self):
-        operation = pymotors.tic_stepper.TicStepper.command_dict['gVariable']
-        variable = pymotors.tic_stepper.TicStepper.variable_dict['max_speed']
+        operation = pymotors.tic_stepper.TicStepper._command_dict['gVariable']
+        variable = pymotors.tic_stepper.TicStepper._variable_dict['max_speed']
         self.stepper.port.read.return_value = [1] * variable[1]
         self.stepper.send(operation, variable)
         expected_write = self.stepper._makeSerialInput(operation[0], [variable[0]])
@@ -134,26 +134,27 @@ class TicStepper_I2c(unittest.TestCase):
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     @patch('pymotors.tic_stepper.SMBus', new=fake_smbus2.SMBus)
     def setUp(self):
-        warnings.filterwarnings('ignore')
         self.tic = pymotors.tic_stepper.TicStepper('I2C', 3, 14)
+        self.cmd = self.tic._command_dict
+        self.var = self.tic._variable_dict
         warnings.filterwarnings('error')
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_set_microstep(self):
         self.tic.microsteps = 1/8
         input = self.tic.com.bus.fakeInput()
-        self.assertEqual([self.tic.command_dict['sStepMode'][0], 3], input[1])
+        self.assertEqual([self.cmd['sStepMode'][0], 3], input[1])
         micros = self.tic.microsteps
         self.assertEqual(1/8, micros)
         self.tic.microsteps = 1/4
         input = self.tic.com.bus.fakeInput()
-        self.assertEqual([self.tic.command_dict['sStepMode'][0], 2], input[1])
+        self.assertEqual([self.cmd['sStepMode'][0], 2], input[1])
         self.tic.microsteps = 1/2
         input = self.tic.com.bus.fakeInput()
-        self.assertEqual([self.tic.command_dict['sStepMode'][0], 1], input[1])
+        self.assertEqual([self.cmd['sStepMode'][0], 1], input[1])
         self.tic.microsteps = 1
         input = self.tic.com.bus.fakeInput()
-        self.assertEqual([self.tic.command_dict['sStepMode'][0], 0], input[1])
+        self.assertEqual([self.cmd['sStepMode'][0], 0], input[1])
         try:
             warned = False
             self.tic.microsteps = 1/6
@@ -167,17 +168,17 @@ class TicStepper_I2c(unittest.TestCase):
         self.tic.steps_per_second = .01
         input = self.tic.com.bus.fakeInput()
         split_input = split32BitI2c(self.tic.steps_per_second * 10000)
-        self.assertEqual([self.tic.command_dict['sMaxSpeed'][0]] + split_input[:], input[1])
+        self.assertEqual([self.cmd['sMaxSpeed'][0]] + split_input[:], input[1])
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_enabled(self):
         self.tic.enabled = True
         input = self.tic.com.bus.fakeInput()
-        self.assertEqual(self.tic.command_dict['exitSafeStart'][0], input[1])
+        self.assertEqual(self.cmd['exitSafeStart'][0], input[1])
         self.assertEqual(True, self.tic.enabled)
         self.tic.enabled = False
         input = self.tic.com.bus.fakeInput()
-        self.assertEqual(self.tic.command_dict['deenergize'][0], input[1])
+        self.assertEqual(self.cmd['deenergize'][0], input[1])
         self.assertEqual(False, self.tic.enabled)
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
@@ -186,7 +187,7 @@ class TicStepper_I2c(unittest.TestCase):
         self.tic.moveAbsSteps(1000)
         input = self.tic.com.bus.fakeInput()
         split_input = split32BitI2c(1000)
-        self.assertEqual([self.tic.command_dict['sTargetPosition'][0]] + split_input, input[1])
+        self.assertEqual([self.cmd['sTargetPosition'][0]] + split_input, input[1])
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_is_homed(self):
@@ -194,7 +195,7 @@ class TicStepper_I2c(unittest.TestCase):
         self.tic.com.bus.fake_register_output = not_home
         check_home = self.tic.isHomed()
         input = self.tic.com.bus.fakeInput()
-        self.assertEqual([self.tic.command_dict['gVariable'][0], self.tic.variable_dict['misc_flags1'][0]], input[1])
+        self.assertEqual([self.cmd['gVariable'][0], self.var['misc_flags1'][0]], input[1])
         self.assertEqual(False, check_home)
         is_home = [1, 0, 1, 1, 1, 1, 1, 1]
         self.tic.com.bus.fake_register_output = is_home
@@ -205,7 +206,6 @@ class TicStepper_I2c(unittest.TestCase):
 class TicStepper_Ser(unittest.TestCase):
     @patch('pymotors.tic_stepper.serial')
     def setUp(self, MockSerial):
-        warnings.filterwarnings('ignore')
         port_name = '/dev/ttyacm0'
         baud_rate = 9600
         port_params = [port_name, baud_rate]
@@ -213,8 +213,8 @@ class TicStepper_Ser(unittest.TestCase):
         self.tic = pymotors.tic_stepper.TicStepper('ser', port_params, address)
         self.write = self.tic.com.port.write
         self.read = self.tic.com.port.read
-        self.cmd = self.tic.command_dict
-        self.var = self.tic.variable_dict
+        self.cmd = self.tic._command_dict
+        self.var = self.tic._variable_dict
         self.proc = self.tic.com._makeSerialInput
         warnings.filterwarnings('error')
 

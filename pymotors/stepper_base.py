@@ -22,7 +22,8 @@ class StepperBase():
 
     Notes
     -----
-    If using `units`, set units_per_step before setting units_per_second.
+    If using `units`, set microsteps before units_per_step if using microsteps.
+    Set units_per_step before units_per_second.
     """
     _enable_states = {'DISABLED': False, 'ENABLED': True}
     _unit_type = {'UNKNOWN': -1, 'STEPS': 0, 'UNITS': 1}
@@ -37,10 +38,13 @@ class StepperBase():
 
     @property
     def microsteps(self):
+        """
+        float: Fraction of a stepper motor full step per pulse.
+        """
         return 1 / self._microsteps
 
     @microsteps.setter
-    def microsteps(self, step_ratio):
+    def microsteps(self, step_ratio: float):
         micros_per_full_step = 1 / step_ratio
         if self._checkMicrostep(micros_per_full_step):
             self._setMicrostep(micros_per_full_step)
@@ -114,7 +118,7 @@ class StepperBase():
         else:
             warnings.warn('Expected `False` (disabled) or `True` (enabled)')
 
-    def moveAbsSteps(self, target_steps, wait_for_motion=0):
+    def moveAbsSteps(self, target_steps: int, wait_for_motion=0):
         """Move to target step position."""
         if self._enabled:
             self._target_steps = target_steps
@@ -127,17 +131,17 @@ class StepperBase():
         else:
             warnings.warn("Motor is not enabled and cannot move.")
 
-    def moveRelSteps(self, rel_target_steps, wait_for_motion=0):
+    def moveRelSteps(self, rel_target_steps: int, wait_for_motion=0):
         """"Move target steps away from current position."""
         target_steps = round(self._convReltoAbs(rel_target_steps))
         self.moveAbsSteps(target_steps)
 
-    def moveAbsUnits(self, target_units, wait_for_motion=0):
+    def moveAbsUnits(self, target_units: float, wait_for_motion=0):
         """Move to target unit position."""
         target_steps = round(self._convUnitsToSteps(target_units))
         self.moveAbsSteps(target_steps)
 
-    def moveRelUnits(self, rel_target_units, wait_for_motion=0):
+    def moveRelUnits(self, rel_target_units: float, wait_for_motion=0):
         """Move target units away from current position."""
         rel_target_steps = self._convUnitsToSteps(rel_target_units)
         self.moveRelSteps(rel_target_steps)
