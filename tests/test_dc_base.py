@@ -26,6 +26,15 @@ class DcBase_Utilities(unittest.TestCase):
         self.assertEqual(True, warned)
         self.patchToggle.start()
 
+    def test_toggle_dict(self):
+        fwd_pin = [1]
+        rev_pin = [2]
+        self.dc2 = pymotors.DcBase(fwd_pin, rev_pin)
+        tog_dict = self.dc2._toggle_dict
+        self.assertEqual([fwd_pin, rev_pin], tog_dict['fwd'])
+        self.assertEqual([rev_pin, fwd_pin], tog_dict['rev'])
+        self.assertEqual([[], fwd_pin + rev_pin], tog_dict['stop'])
+
     @patch('pymotors.dc_base.threading')
     def test_set_and_clear_unexpired_timer(self, MockThreads):
         self.dc._setExpiration(1)
@@ -83,26 +92,31 @@ class LimitedDc_Utilities(unittest.TestCase):
         self.assertEqual(self.limits_dict['rev'], self.dc._limits['rev'])
         self.assertEqual(None, self.dc._limits['stop'])
 
-    def test_poll_limits(self):
-        self.dc._pollLimits('fwd')
-        self.dc._pollLimits.assert_called_with('fwd')
+    def test_toggle_dict(self):
+        fwd_pin = [1]
+        rev_pin = [2]
+        self.dc2 = pymotors.LimitedDc(self.limits_dict, fwd_pin, rev_pin)
+        tog_dict = self.dc2._toggle_dict
+        self.assertEqual([fwd_pin, rev_pin], tog_dict['fwd'])
+        self.assertEqual([rev_pin, fwd_pin], tog_dict['rev'])
+        self.assertEqual([[], fwd_pin + rev_pin], tog_dict['stop'])
 
     def test_check_limits(self):
         self.dc._pollLimits = unittest.mock.Mock(return_value=0.1)
         self.dc.stop()
-        self.dc._checkLimits('stop')
+        self.dc._checkLimits()
         self.dc.moveRev()
-        self.dc._checkLimits('rev')
+        self.dc._checkLimits()
         self.assertEqual(True, self.dc._timer_limits.is_alive())
         self.dc._pollLimits = unittest.mock.Mock(return_value=self.limits_dict['rev'])
-        self.dc._checkLimits('rev')
+        self.dc._checkLimits()
         self.assertEqual(False, self.dc._timer_limits.is_alive())
         self.dc._togglePins.return_value = 1
         self.dc.moveFwd(2)
-        self.dc._checkLimits('fwd')
+        self.dc._checkLimits()
         self.assertEqual(True, self.dc._timer_limits.is_alive())
         self.assertEqual(True, self.dc._timer.is_alive())
         self.dc._pollLimits = unittest.mock.Mock(return_value=self.limits_dict['fwd'])
-        self.dc._checkLimits('fwd')
+        self.dc._checkLimits()
         self.assertEqual(False, self.dc._timer_limits.is_alive())
         self.assertEqual(False, self.dc._timer.is_alive())

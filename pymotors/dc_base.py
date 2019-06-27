@@ -53,12 +53,14 @@ class DcBase():
             self._timer.start()
 
     def _clearExpiration(self):
-        self._timer.cancel()
+        if self._timer.is_alive():
+            self._timer.cancel()
+            self._timer.join()
 
 
 class LimitedDc(DcBase):
 
-    def __init__(self, dir_limit: dict, forward_pins=[], reverse_pins=[]):
+    def __init__(self, dir_limit: dict, fwd_pin=[], rev_pin=[]):
         self._limits = {
                         'rev': None,
                         'fwd': None,
@@ -68,12 +70,12 @@ class LimitedDc(DcBase):
             self._limits[entry] = dir_limit[entry]
         self._timer_limits = threading.Timer(1, self._checkLimits)
         self._timer_limits.start()
-        super(LimitedDc, self).__init__()
+        super(LimitedDc, self).__init__(fwd_pin, rev_pin)
 
-    def _checkLimits(self, direction):
-        adc_limit = self._limits[direction]
+    def _checkLimits(self):
+        adc_limit = self._limits[self.direction]
         if adc_limit is not None:
-            if self._pollLimits(self.direction) >= adc_limit:
+            if self._pollLimits() >= adc_limit:
                 self.stop()
                 return 'Limit reached'
             else:
@@ -89,5 +91,5 @@ class LimitedDc(DcBase):
             self._timer.cancel()
             self._timer.join()
 
-    def _pollLimits(self, direction):
+    def _pollLimits(self):
         raise NotImplementedError('_pollLimits has not been overridden.')
