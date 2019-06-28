@@ -1,9 +1,9 @@
 import unittest
 import warnings
-import src
+import pymotors
 
 
-class StepperBaseModified(src.StepperBase):
+class StepperBaseModified(pymotors.StepperBase):
     def __init__(self):
         super().__init__()
         self._fake_position_in_steps = 0
