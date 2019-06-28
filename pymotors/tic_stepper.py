@@ -12,7 +12,7 @@ except ImportError:
 
 class TicStepper(StepperBase):
     """
-    Class for controlling stepper motors with a Adafruit Tic stepper driver.
+    Class for controlling stepper motors with a Pololu Tic stepper driver.
     Builds off of the stepper motor base class StepperBase and communicates
     with hardware either through serial or I2C. Prior to deploying the Tic
     stepper driver, it is STRONGLY recommended that the board is preconfigured
@@ -259,7 +259,7 @@ class TicStepper(StepperBase):
 
 class TicSerial(object):
     """
-    Serial communication protocol for operating an Adafruit Tic stepper driver.
+    Serial communication protocol for operating a Tic stepper driver.
 
     Attributes
     ----------
@@ -339,7 +339,7 @@ class TicSerial(object):
 
 class TicI2C(object):
     """
-    I2C communication protocol for operating an Adafruit Tic stepper driver.
+    I2C communication protocol for operating a Tic stepper driver.
 
     Attributes
     ----------
