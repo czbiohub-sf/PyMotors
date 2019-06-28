@@ -32,8 +32,8 @@ class StepperBase():
                  input_units_per_second=10):
         self.microsteps = input_microsteps
         self.units_per_step = input_units_per_step
-        self._steps_per_second = input_units_per_second
-        self._enabled = self._enable_states['DISABLED']
+        self.steps_per_second = input_units_per_second
+        self.enabled = self._enable_states['DISABLED']
         self._target_steps = 0
 
     @property
