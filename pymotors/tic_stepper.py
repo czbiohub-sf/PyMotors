@@ -374,7 +374,7 @@ class TicI2C(object):
         offset = operation[0]
         protocol = operation[1]
         if protocol == 'quick':  # Quick write
-            command = offset
+            command = [offset]
             read = None
         elif protocol == 'read':  # Block read
             command = [offset, data[0]]
