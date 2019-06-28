@@ -175,8 +175,7 @@ class StepperBase():
         Stops movement by setting current position to target position. Also,
         disable the motor to ignore queued movement commands.
         """
-        self._target_steps = self.position('steps')
-        self.enabled = self._enable_states['DISABLED']
+        self.moveRelSteps(0)
 
     def _moveToTarget(self):
         """
