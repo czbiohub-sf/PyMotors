@@ -216,7 +216,7 @@ class TicStepper(StepperBase):
         location = b[0] + (b[1] << 8) + (b[2] << 16) + (b[3] << 24)
         if location >= (1 << 31):
             location -= (1 << 32)
-            return location
+        return location
 
     def _moveToTarget(self):
         command_to_send = self._command_dict['sTargetPosition']
@@ -394,8 +394,7 @@ class TicI2C(object):
             warnings.warn('Protocol `{}` not recognized.'.format(protocol))
 
         write = i2c_msg.write(self.address, command)
-        if read is None:
-            self.bus.i2c_rdwr(write)
-        else:
-            self.bus.i2c_rdwr(write, read)
+        self.bus.i2c_rdwr(write)
+        if read is not None:
+            self.bus.i2c_rdwr(read)
             return list(read)
