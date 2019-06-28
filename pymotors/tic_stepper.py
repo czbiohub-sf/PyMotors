@@ -238,7 +238,7 @@ class TicStepper(StepperBase):
         return 1
 
     def _setMicrostep(self, microstep: int):
-        self._microsteps = microstep
+        self._microsteps_per_full_step = microstep
         command_to_send = self._command_dict['sStepMode']
         data = (microstep == 0b10) + (microstep == 0b100)*2 + (microstep == 0b1000)*3
         self.com.send(command_to_send, data)
