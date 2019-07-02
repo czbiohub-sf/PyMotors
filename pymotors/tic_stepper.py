@@ -322,7 +322,7 @@ class TicSerial(object):
             command = self._makeSerialInput(offset)
             read = False
         elif protocol == 'read':  # Block read
-            command = self._makeSerialInput(offset, [data[0]])
+            command = self._makeSerialInput(offset, data)
             read = True
         elif protocol == 7:  # 7-bit write
             data = [int(data)]
