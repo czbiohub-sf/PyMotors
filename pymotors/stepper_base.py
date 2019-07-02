@@ -87,6 +87,20 @@ class StepperBase():
             warnings.warn("Speed must be greater than 0.")
 
     @property
+    def accel_decel(self):
+        return [self._accel, self._decel]
+
+    @accel_decel.setter
+    def accel_decel(self, accel_decel_vals: list):
+        if accel_decel_vals[0] > 0 and accel_decel_vals[1] > 0:
+            self._accel = accel_decel_vals[0]
+            self._decel = accel_decel_vals[1]
+            self._setAccel(self._accel)
+            self._setDecel(self._decel)
+        else:
+            warnings.warn("Acceleration and/or deceleration must be > 0")
+
+    @property
     def enabled(self):
         """bool : Enable or disable the motor."""
         return self._enabled
@@ -197,6 +211,7 @@ class StepperBase():
         Function should account for _target_steps when implemented.
         Function should account for the current position in absolute steps.
         Function should account for _steps_per_second when implemented.
+        Function should account for _accel and _decel when implemented.
         """
         raise NotImplementedError('_moveTo is not overridden.')
 
@@ -258,6 +273,12 @@ class StepperBase():
         """
         self._microsteps_per_full_step = microstep
         warnings.warn("Overload _setMicrostep for functionality.")
+
+    def _setAccel(self, val):
+        raise NotImplementedError('_setAccel is not overridden.')
+
+    def _setDecel(self, val):
+        raise NotImplementedError('_setDecel is not overridden.')
 
     def _convUnitsToSteps(self, units):
         return units / self.units_per_step

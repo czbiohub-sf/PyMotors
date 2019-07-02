@@ -80,6 +80,7 @@ class Stepper_Utilities(unittest.TestCase):
         self.assertEqual(100, self.stepper.position('units'))
 
     def test_is_moving_and_stop(self):
+        self.stepper.enabled = True
         self.assertEqual(0, self.stepper.isMoving())
         self.stepper._fake_position_in_steps = 10
         self.stepper._target_steps = 15

@@ -145,7 +145,10 @@ class TicStepper(StepperBase):
         limit_available = self._checkLimitSwitch(dir)
         if limit_available:
             command_to_send = self._command_dict['goHome']
-            data = dir
+            if dir == 'fwd':
+                data = 1
+            else:
+                data = 0
             self.com.send(command_to_send, data)
         else:
             warnings.warn('Limit switch not available in direction: ' + dir)
@@ -164,7 +167,7 @@ class TicStepper(StepperBase):
         command_to_send = self._command_dict['gVariable']
         data = self._variable_dict['misc_flags1']
         b = self.com.send(command_to_send, data)
-        position_known = b[1] == 0
+        position_known = (b[0] & 2) == 0
         return position_known
 
     @property
@@ -237,10 +240,22 @@ class TicStepper(StepperBase):
             return 0
         return 1
 
+    def _setAccel(self, val):
+        command_to_send = self._command_dict['sMaxAccel']
+        data = val
+        self.com.send(command_to_send, data)
+
+    def _setDecel(self, val):
+        command_to_send = self._command_dict['sMaxDecel']
+        data = val
+        self.com.send(command_to_send, data)
+
     def _setMicrostep(self, microstep: int):
         self._microsteps_per_full_step = microstep
         command_to_send = self._command_dict['sStepMode']
-        data = (microstep == 0b10) + (microstep == 0b100)*2 + (microstep == 0b1000)*3
+        data = (microstep == 0b10) \
+            + (microstep == 0b100)*2 \
+            + (microstep == 0b1000)*3
         self.com.send(command_to_send, data)
 
     def _setSpeed(self, speed):

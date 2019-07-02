@@ -39,7 +39,7 @@ class TicI2c_Utilities(unittest.TestCase):
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_fake_read(self):
         self.stepper.send([0x00, 'quick'])  # purge native i2c_msg
-        self.stepper.bus.fake_register_output = [1, 2, 3, 4, 5, 6, 7, 8]
+        self.stepper.bus.fake_register_output = [self.stepper.address, 8]
         read_bits = 8
         payload = [0x33, read_bits]
         output = self.stepper.send([0xCC, 'read'], payload)
@@ -174,11 +174,11 @@ class TicStepper_I2c(unittest.TestCase):
     def test_enabled(self):
         self.tic.enabled = True
         input = self.tic.com.bus.fakeInput()
-        self.assertEqual(self.cmd['exitSafeStart'][0], input[1])
+        self.assertEqual(self.cmd['exitSafeStart'][0], input[1][0])
         self.assertEqual(True, self.tic.enabled)
         self.tic.enabled = False
         input = self.tic.com.bus.fakeInput()
-        self.assertEqual(self.cmd['deenergize'][0], input[1])
+        self.assertEqual(self.cmd['deenergize'][0], input[1][0])
         self.assertEqual(False, self.tic.enabled)
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
@@ -191,13 +191,13 @@ class TicStepper_I2c(unittest.TestCase):
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_is_homed(self):
-        not_home = [1, 1, 1, 1, 1, 1, 1, 1]
+        not_home = 3
         self.tic.com.bus.fake_register_output = not_home
         check_home = self.tic.isHomed()
         input = self.tic.com.bus.fakeInput()
-        self.assertEqual([self.cmd['gVariable'][0], self.var['misc_flags1'][0]], input[1])
+        self.assertEqual(self.var['misc_flags1'][0], input[1])
         self.assertEqual(False, check_home)
-        is_home = [1, 0, 1, 1, 1, 1, 1, 1]
+        is_home = 1
         self.tic.com.bus.fake_register_output = is_home
         check_home = self.tic.isHomed()
         self.assertEqual(True, check_home)
@@ -273,14 +273,14 @@ class TicStepper_Ser(unittest.TestCase):
     def test_is_homed(self):
         operation = self.cmd['gVariable']
         variable = self.var['misc_flags1']
-        not_home = [1, 1, 1, 1, 1, 1, 1, 1]
+        not_home = [3]
         self.read.return_value = not_home
         check_home = self.tic.isHomed()
         input = self.proc(operation[0], [variable[0]])
         self.write.assert_called_with(input)
         self.read.assert_called_with(variable[1])
         self.assertEqual(False, check_home)
-        is_home = [1, 0, 1, 1, 1, 1, 1, 1]
+        is_home = [1]
         self.read.return_value = is_home
         check_home = self.tic.isHomed()
         self.assertEqual(True, check_home)
