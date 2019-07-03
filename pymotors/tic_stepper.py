@@ -29,7 +29,7 @@ class TicStepper(StepperBase):
         Stepper speed in steps
     units_per_second : float
         Stepper speed in user defined units.
-    enabled : bool
+    enable : bool
         Software lock on stepper motion.
 
     Notes
@@ -171,19 +171,19 @@ class TicStepper(StepperBase):
         return position_known
 
     @property
-    def enabled(self):
+    def enable(self):
         """
         Check the enable state of the motor.
 
         Returns
         -------
-        _enabled : bool
-            True if the motor is enabled, False if the motor is disabled.
+        _enable : bool
+            True if the motor is enable, False if the motor is disabled.
         """
-        return self._enabled
+        return self._enable
 
-    @enabled.setter
-    def enabled(self, state):
+    @enable.setter
+    def enable(self, state):
         """
         Enable or disable the motor.
 
@@ -198,15 +198,15 @@ class TicStepper(StepperBase):
         If state is not a boolean value.
         """
         if state == self._enable_states['DISABLED']:
-            self._enabled = self._enable_states['DISABLED']
+            self._enable = self._enable_states['DISABLED']
             self.com.send(self._command_dict['enterSafeStart'])
             self.com.send(self._command_dict['deenergize'])
         elif state == self._enable_states['ENABLED']:
-            self._enabled = self._enable_states['ENABLED']
+            self._enable = self._enable_states['ENABLED']
             self.com.send(self._command_dict['energize'])
             self.com.send(self._command_dict['exitSafeStart'])
         else:
-            warnings.warn('Expected `False` (disabled) or `True` (enabled)')
+            warnings.warn('Expected `False` (disabled) or `True` (enable)')
 
     def _position_in_steps(self):
         """
@@ -297,7 +297,7 @@ class TicSerial(object):
         if data is None:
             return bytes(header)
         else:
-            return bytes(header + data)
+            return bytes(header + list(data))
 
     def send(self, operation: list, data: list = None):
         """

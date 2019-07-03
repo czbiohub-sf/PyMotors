@@ -80,7 +80,7 @@ class Stepper_Utilities(unittest.TestCase):
         self.assertEqual(100, self.stepper.position('units'))
 
     def test_is_moving_and_stop(self):
-        self.stepper.enabled = True
+        self.stepper.enable = True
         self.assertEqual(0, self.stepper.isMoving())
         self.stepper._fake_position_in_steps = 10
         self.stepper._target_steps = 15
@@ -89,12 +89,12 @@ class Stepper_Utilities(unittest.TestCase):
         self.assertEqual(0, self.stepper.isMoving())
 
     def test_absolute_steps(self):
-        self.stepper.enabled = True
+        self.stepper.enable = True
         self.stepper.moveAbsSteps(100)
         self.assertEqual(100, self.stepper.position('steps'))
         self.stepper.moveAbsSteps(-100)
         self.assertEqual(-100, self.stepper.position('steps'))
-        self.stepper.enabled = False
+        self.stepper.enable = False
         try:
             warned = False
             self.stepper.moveAbsSteps(0)
@@ -103,7 +103,7 @@ class Stepper_Utilities(unittest.TestCase):
         self.assertEqual(True, warned)
 
     def test_absolute_units(self):
-        self.stepper.enabled = True
+        self.stepper.enable = True
         self.stepper.units_per_step = 10
         self.stepper.moveAbsUnits(100)
         self.assertEqual(10, self.stepper.position('steps'))
@@ -111,14 +111,14 @@ class Stepper_Utilities(unittest.TestCase):
         self.assertEqual(-10, self.stepper.position('steps'))
 
     def test_relative_steps(self):
-        self.stepper.enabled = True
+        self.stepper.enable = True
         self.stepper.moveRelSteps(100)
         self.assertEqual(100, self.stepper.position('steps'))
         self.stepper.moveRelSteps(-200)
         self.assertEqual(-100, self.stepper.position('steps'))
 
     def test_relative_units(self):
-        self.stepper.enabled = True
+        self.stepper.enable = True
         self.stepper.units_per_step = 10
         self.stepper.moveRelUnits(100)
         self.assertEqual(100, self.stepper.position('units'))
@@ -128,7 +128,7 @@ class Stepper_Utilities(unittest.TestCase):
         self.assertEqual(0, self.stepper.position('steps'))
 
     def test_move_units_rounding(self):
-        self.stepper.enabled = True
+        self.stepper.enable = True
         self.stepper.units_per_step = 10
         self.stepper.moveRelUnits(96)
         self.assertEqual(100, self.stepper.position('units'))
@@ -139,6 +139,13 @@ class Stepper_Utilities(unittest.TestCase):
         self.stepper.moveAbsUnits(-6)
         self.assertEqual(-10, self.stepper.position('units'))
         self.assertEqual(-1, self.stepper.position('steps'))
+
+    def test_accel_decel(self):
+        self.stepper._setAccel = unittest.mock.Mock()
+        self.stepper._setDecel = unittest.mock.Mock()
+        ac_dc_val = [1000, 10000]
+        self.stepper.accel_decel = ac_dc_val
+        self.assertEqual(ac_dc_val, self.stepper.accel_decel)
 
 
 if __name__ == '__main__':

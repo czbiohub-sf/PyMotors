@@ -17,7 +17,7 @@ class StepperBase():
         Stepper speed in steps
     units_per_second : float
         Stepper speed in user defined units.
-    enabled : bool
+    enable : bool
         Software lock on stepper motion.
 
     Notes
@@ -33,7 +33,7 @@ class StepperBase():
         self.microsteps = input_microsteps
         self.units_per_step = input_units_per_step
         self.steps_per_second = input_units_per_second
-        self.enabled = self._enable_states['DISABLED']
+        self.enable = self._enable_states['DISABLED']
         self._target_steps = 0
 
     @property
@@ -101,12 +101,12 @@ class StepperBase():
             warnings.warn("Acceleration and/or deceleration must be > 0")
 
     @property
-    def enabled(self):
+    def enable(self):
         """bool : Enable or disable the motor."""
-        return self._enabled
+        return self._enable
 
-    @enabled.setter
-    def enabled(self, state):
+    @enable.setter
+    def enable(self, state):
         """
         Enable or disable the motor.
 
@@ -126,19 +126,19 @@ class StepperBase():
 
         """
         if state == self._enable_states['DISABLED']:
-            self._enabled = self._enable_states['DISABLED']
+            self._enable = self._enable_states['DISABLED']
         elif state == self._enable_states['ENABLED']:
-            self._enabled = self._enable_states['ENABLED']
+            self._enable = self._enable_states['ENABLED']
         else:
-            warnings.warn('Expected `False` (disabled) or `True` (enabled)')
+            warnings.warn('Expected `False` (disabled) or `True` (enable)')
 
     def moveAbsSteps(self, target_steps: int):
         """Move to target step position."""
-        if self._enabled:
+        if self._enable:
             self._target_steps = target_steps
             self._moveToTarget()
         else:
-            warnings.warn("Motor is not enabled and cannot move.")
+            warnings.warn("Motor is not enable and cannot move.")
 
     def moveRelSteps(self, rel_target_steps: int):
         """"Move target steps away from current position."""
