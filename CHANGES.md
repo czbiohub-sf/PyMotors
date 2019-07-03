@@ -1,7 +1,14 @@
 # Relase notes
 
 All notable changes to this project will be documented in this file. This module adheres to [Semantic Versioning](https://semver.org/).
-## 0.0.2
+## 1.0.0
+- Replace steps_per_second with rpm
+- Replace units_per_second with dist_per_min
+- Account for microsteps in step <-> dist conversion
+- Make speed independent of microsteps setting
+- Remove accel/decel methods from StepperBase and move to TicStepper
+
+## 0.1.0
 - Add accel/decel method to StepperBase with tests
 - Add _setAccel and _setDecel methods to TicStepper with tests
 - Fix StepperBase method `stop`

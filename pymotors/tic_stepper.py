@@ -1,3 +1,16 @@
+"""Utilities for interfacing with a Pololu Tic T500 stepper driver.
+
+Communication protocols that are currently supported include I2C (TicI2C) and
+TTL serial (TicSerial). To support other Tic stepper drivers, add relevant
+commands and variables that may be absent. Before using the following code
+with your Tic stepper driver, preconfigure the board with USB. Settings cannot
+be changed via I2C or serial - only variables can be.
+
+Recommended setups:
+Raspberry Pi with I2C or serial implmentation and bidirectional level shifters.
+PC with serial implementaiton and a USB-to-UART cable (5V TTL).
+
+"""
 import warnings
 from .stepper_base import StepperBase
 try:  # Import I2C module
@@ -7,108 +20,105 @@ except ImportError:
 try:  # Import serial module
     import serial
 except ImportError:
-    print('Unable to import serial for Tic serial communication.')
+    print('Unable to import pyserial for Tic serial communication.')
 
 
 class TicStepper(StepperBase):
-    """
-    Class for controlling stepper motors with a Pololu Tic stepper driver.
-    Builds off of the stepper motor base class StepperBase and communicates
-    with hardware either through serial or I2C. Prior to deploying the Tic
-    stepper driver, it is STRONGLY recommended that the board is preconfigured
-    over USB as described in their documentation:
-    => https://www.pololu.com/docs/0J71/all#4.3 <=
+    """Short summary.
+
+    Parameters
+    ----------
+    type : str
+        Communication protocol `I2C` or `SERIAL`.
+    port_params : list, str
+        (Serial) -> [port: str, baud: int] || (I2C) -> port: str.
+    address : int
+        Device address on bus.
+    input_microsteps : float
+        Full steps per microstep (ie 1/8).
+    input_distance_per_revolution : float
+        Conversion factor of units per full step.
+    input_rpm : type
+        Description of parameter `input_rpm`.
 
     Attributes
     ----------
-    microsteps : int
-        Ratio of full steps to microsteps.
-    units_per_step : float
-        Conversion factor converting steps into user defined units.
-    steps_per_second : float
-        Stepper speed in steps
-    units_per_second : float
-        Stepper speed in user defined units.
     enable : bool
-        Software lock on stepper motion.
 
-    Notes
-    -----
-    If using `units`, set units_per_step before setting units_per_second.
 
     """
 
     _com_protocol = {'SERIAL': 0, 'I2C': 1}
     _command_dict = \
         {  # 'commandKey': [command_address, operation] # Data
-                'sTargetPosition': [0xE0, 32],  # microsteps
-                'sTargetVelocity': [0xE3, 32],  # microsteps / 10,000s
-                'haltAndSetPosition': [0xEC, 32],  # microsteps
-                'haltAndHoldPosition': [0x89, 'quick'],  # NONE
-                'goHome': [0x97, 7],  # 0: rev, 1: fwd
-                'rstCommandTimeout': [0x8C, 'quick'],  # NONE
-                'deenergize': [0x86, 'quick'],  # NONE
-                'energize': [0x85, 'quick'],  # NONE
-                'exitSafeStart': [0x83, 'quick'],  # NONE
-                'enterSafeStart': [0x8F, 'quick'],  # NONE
-                'rst': [0xB0, 'quick'],  # NONE
-                'clrDriverError': [0x8A, 'quick'],  # NONE
-                'sMaxSpeed': [0xE6, 32],  # microsteps / 10,000s
-                'sStartingSpeed': [0xE5, 32],  # microsteps / 10,000s
-                'sMaxAccel': [0xEA, 32],  # microsteps / 100(s^2)
-                'sMaxDecel': [0xE9, 32],  # microsteps / 100(s^2)
-                'sStepMode': [0x94, 7],  # 0<=n<=3 (microsteps = 2^n)
-                'sCurrentLimit': [0x91, 7],  # 0 to 124
-                'gVariable': [0xA1, 'read'],  # block read
-                'gVarAndClearErrs': [0xA2, 'read'],  # block read
-                'gSetting': [0xA8, 'read'],  # block read
+            'sTargetPosition': [0xE0, 32],  # microsteps
+            'sTargetVelocity': [0xE3, 32],  # microsteps / 10,000s
+            'haltAndSetPosition': [0xEC, 32],  # microsteps
+            'haltAndHoldPosition': [0x89, 'quick'],  # NONE
+            'goHome': [0x97, 7],  # 0: rev, 1: fwd
+            'rstCommandTimeout': [0x8C, 'quick'],  # NONE
+            'deenergize': [0x86, 'quick'],  # NONE
+            'energize': [0x85, 'quick'],  # NONE
+            'exitSafeStart': [0x83, 'quick'],  # NONE
+            'enterSafeStart': [0x8F, 'quick'],  # NONE
+            'rst': [0xB0, 'quick'],  # NONE
+            'clrDriverError': [0x8A, 'quick'],  # NONE
+            'sMaxSpeed': [0xE6, 32],  # microsteps / 10,000s
+            'sStartingSpeed': [0xE5, 32],  # microsteps / 10,000s
+            'sMaxAccel': [0xEA, 32],  # microsteps / 100(s^2)
+            'sMaxDecel': [0xE9, 32],  # microsteps / 100(s^2)
+            'sStepMode': [0x94, 7],  # 0<=n<=3 (microsteps = 2^n)
+            'sCurrentLimit': [0x91, 7],  # 0 to 124
+            'gVariable': [0xA1, 'read'],  # block read
+            'gVarAndClearErrs': [0xA2, 'read'],  # block read
+            'gSetting': [0xA8, 'read'],  # block read
         }  # documentation: https://www.pololu.com/docs/0J71/8
     _variable_dict = \
         {  # 'variable_key': [offset_address, bits_to_read]
-                'operation_state': [0x00, 1],
-                'misc_flags1': [0x01, 1],
-                'error_status': [0x02, 2],
-                'errors_occured': [0x04, 4],
-                'planning_mode': [0x09, 1],
-                'target_position': [0x0A, 4],
-                'target_velocity': [0x0E, 4],
-                'starting_speed': [0x12, 4],
-                'max_speed': [0x16, 4],
-                'max_accel': [0x1A, 4],
-                'max_decel': [0x1E, 4],
-                'curr_position': [0x22, 4],
-                'curr_velocity': [0x26, 4],
-                'acting_tar_pos': [0x2A, 4],
-                'time_since_last_step': [0x2E, 4],  # 1/3us
-                'device_rst': [0x32, 1],
-                'vin_voltage': [0x33, 2],
-                'uptime': [0x35, 4],
-                'encoder_pos': [0x39, 4],
-                'rc_pulse_width': [0x3D, 2],
-                'analog_reading_SCL': [0x3F, 2],
-                'analog_reading_SDA': [0x41, 2],
-                'analog_reading_TX': [0x43, 2],
-                'analog_reading_RX': [0x45, 2],
-                'digital_readings': [0x47, 1],
-                'pin_states': [0x48, 1],
-                'step_mode': [0x49, 1],
-                'current_limit': [0x4A, 1],
-                'input_state': [0x4C, 1],
-                'last_driver_error': [0x55, 1],
+            'operation_state': [0x00, 1],
+            'misc_flags1': [0x01, 1],
+            'error_status': [0x02, 2],
+            'errors_occured': [0x04, 4],
+            'planning_mode': [0x09, 1],
+            'target_position': [0x0A, 4],
+            'target_velocity': [0x0E, 4],
+            'starting_speed': [0x12, 4],
+            'max_speed': [0x16, 4],
+            'max_accel': [0x1A, 4],
+            'max_decel': [0x1E, 4],
+            'curr_position': [0x22, 4],
+            'curr_velocity': [0x26, 4],
+            'acting_tar_pos': [0x2A, 4],
+            'time_since_last_step': [0x2E, 4],  # 1/3us
+            'device_rst': [0x32, 1],
+            'vin_voltage': [0x33, 2],
+            'uptime': [0x35, 4],
+            'encoder_pos': [0x39, 4],
+            'rc_pulse_width': [0x3D, 2],
+            'analog_reading_SCL': [0x3F, 2],
+            'analog_reading_SDA': [0x41, 2],
+            'analog_reading_TX': [0x43, 2],
+            'analog_reading_RX': [0x45, 2],
+            'digital_readings': [0x47, 1],
+            'pin_states': [0x48, 1],
+            'step_mode': [0x49, 1],
+            'current_limit': [0x4A, 1],
+            'input_state': [0x4C, 1],
+            'last_driver_error': [0x55, 1],
         }  # documentation: https://www.pololu.com/docs/0J71/7
 
     _setting_dict = \
         {
-                'limit_switch_fwd': [0x5F, 8],
-                'limit_switch_rev': [0x60, 8],
+            'limit_switch_fwd': [0x5F, 8],
+            'limit_switch_rev': [0x60, 8],
         }
 
     def __init__(self, type: str,
                  port_params,
                  address=None,
                  input_microsteps=1,
-                 input_units_per_step=1,
-                 input_units_per_second=10):
+                 input_dist_per_rev=1,
+                 input_rpm=10):
 
         if self._communicationProtocol(type) == self._com_protocol['SERIAL']:
             port_name = port_params[0]  # ex: '/dev/ttyacm0'
@@ -121,8 +131,8 @@ class TicStepper(StepperBase):
             self.com = TicI2C(port_params, address)
 
         super(TicStepper, self).__init__(input_microsteps,
-                                         input_units_per_step,
-                                         input_units_per_second)
+                                         input_dist_per_rev,
+                                         input_rpm)
 
     def home(self, dir: str):
         """
@@ -208,8 +218,24 @@ class TicStepper(StepperBase):
         else:
             warnings.warn('Expected `False` (disabled) or `True` (enable)')
 
+    @property
+    def accel_decel(self) -> list:
+        """Acceleration and deceleration values."""
+        return [self._accel, self._decel]
+
+    @accel_decel.setter
+    def accel_decel(self, accel_decel_vals: list):
+        if accel_decel_vals[0] > 0 and accel_decel_vals[1] > 0:
+            self._accel = accel_decel_vals[0]
+            self._decel = accel_decel_vals[1]
+            self._setAccel(self._accel)
+            self._setDecel(self._decel)
+        else:
+            warnings.warn("Acceleration and/or deceleration must be > 0")
+
     def _position_in_steps(self):
-        """
+        """Process Tic output for location in steps.
+
         32-bit readings return bytes in reverse order. Elements need to be
         shifted accordingly and the sign of the value needs to be checked.
         """
@@ -240,12 +266,28 @@ class TicStepper(StepperBase):
             return 0
         return 1
 
-    def _setAccel(self, val):
+    def _setAccel(self, val: int):
+        """Communicates with the Tic board to set max acceleration.
+
+        Parameters
+        ----------
+        val : int
+            Max acceleration value in microsteps/s^2.
+
+        """
         command_to_send = self._command_dict['sMaxAccel']
         data = val
         self.com.send(command_to_send, data)
 
-    def _setDecel(self, val):
+    def _setDecel(self, val: int):
+        """Communicates with the Tic board to set max Deceleration.
+
+        Parameters
+        ----------
+        val : int
+            Max deceleration value in microsteps/s^2.
+
+        """
         command_to_send = self._command_dict['sMaxDecel']
         data = val
         self.com.send(command_to_send, data)

@@ -1,8 +1,10 @@
+"""General purpose stepper motor base class."""
 import warnings
 
 
 class StepperBase():
-    """
+    """Stepper motor base class.
+
     Base class for interfacing with stepper motors while being agnostic to
     implementation specifics. Provides movement commands in absolute and
     relative positions described in steps or units per step.
@@ -11,98 +13,85 @@ class StepperBase():
     ----------
     microsteps : int
         Ratio of full steps to microsteps.
-    units_per_step : float
+    dist_per_rev : float
         Conversion factor converting steps into user defined units.
     steps_per_second : float
         Stepper speed in steps
-    units_per_second : float
+    rpm : float
         Stepper speed in user defined units.
     enable : bool
         Software lock on stepper motion.
 
     Notes
     -----
-    If using `units`, set microsteps before units_per_step if using microsteps.
-    Set units_per_step before units_per_second.
-    """
-    _enable_states = {'DISABLED': False, 'ENABLED': True}
-    _unit_type = {'UNKNOWN': -1, 'STEPS': 0, 'UNITS': 1}
+    If using `units`, set microsteps before dist_per_rev if using microsteps.
+    Set dist_per_rev before rpm.
 
-    def __init__(self, input_microsteps=1, input_units_per_step=1,
-                 input_units_per_second=10):
-        self.microsteps = input_microsteps
-        self.units_per_step = input_units_per_step
-        self.steps_per_second = input_units_per_second
-        self.enable = self._enable_states['DISABLED']
+    """
+
+    # pylint: disable=invalid-name
+    # pylint: disable=too-many-instance-attributes
+
+    _enable_states = {'DISABLED': False, 'ENABLED': True}
+    _unit_type = {'UNKNOWN': -1, 'STEPS': 0, 'DIST': 1}
+
+    def __init__(self, dist_per_rev=1, steps_per_rev=200, rpm=1):
+        self._enable = None
+        self._steps_per_second = None
         self._target_steps = 0
+        self._microsteps_per_full_step = 1
+        self.steps_per_rev = steps_per_rev
+        self.dist_per_rev = dist_per_rev
+        self.rpm = rpm
+        self.enable = self._enable_states['DISABLED']
 
     @property
-    def microsteps(self):
-        """
-        float: Fraction of a stepper motor full step per pulse.
-        """
+    def microsteps(self) -> float:
+        """Fraction of a stepper motor full step per pulse."""
         return 1 / self._microsteps_per_full_step
 
     @microsteps.setter
     def microsteps(self, step_ratio: float):
         micros_per_full_step = 1 / step_ratio
         if self._checkMicrostep(micros_per_full_step):
+            old_micros = self.microsteps
+            new_to_old = micros_per_full_step / old_micros
+            self.rpm = self.rpm * new_to_old  # reset RPM for new micros
             self._setMicrostep(micros_per_full_step)
         else:
             warnings.warn("Microstep value not available.")
 
     @property
-    def units_per_step(self):
-        """float : Conversion factor for steps to units of interest."""
-        return self._units_per_step
+    def dist_per_min(self):
+        """Speed in distance per minute."""
+        return round(self._convStepsToDist(self._steps_per_second) * 60, 3)
 
-    @units_per_step.setter
-    def units_per_step(self, units: float):
-        self._units_per_step = units
-
-    @property
-    def steps_per_second(self):
-        """float : Speed in steps per second."""
-        return self._steps_per_second
-
-    @steps_per_second.setter
-    def steps_per_second(self, speed: float):
+    @dist_per_min.setter
+    def dist_per_min(self, speed: float):
         if speed > 0:
-            self._steps_per_second = speed
-            self._setSpeed(speed)
+            steps_per_second = self._convDistToSteps(speed / 60)
+            self._setSpeed(steps_per_second)
+            self._steps_per_second = steps_per_second
         else:
             warnings.warn("Speed must be greater than 0.")
 
     @property
-    def units_per_second(self):
-        """float : Speed in units per second."""
-        return self._convStepsToUnits(self._steps_per_second)
+    def rpm(self) -> float:
+        """Speed in revolutions per minute."""
+        rpm = self.dist_per_min / self.dist_per_rev
+        return round(rpm, 3)
 
-    @units_per_second.setter
-    def units_per_second(self, speed: float):
-        """Set units_per_step before calling units_per_second."""
-        if speed > 0:
-            self._steps_per_second = self._convUnitsToSteps(speed)
+    @rpm.setter
+    def rpm(self, revs_per_min: float):
+        """Set dist_per_rev before calling rpm."""
+        if revs_per_min > 0:
+            self.dist_per_min = revs_per_min * self.dist_per_rev
         else:
             warnings.warn("Speed must be greater than 0.")
 
     @property
-    def accel_decel(self):
-        return [self._accel, self._decel]
-
-    @accel_decel.setter
-    def accel_decel(self, accel_decel_vals: list):
-        if accel_decel_vals[0] > 0 and accel_decel_vals[1] > 0:
-            self._accel = accel_decel_vals[0]
-            self._decel = accel_decel_vals[1]
-            self._setAccel(self._accel)
-            self._setDecel(self._decel)
-        else:
-            warnings.warn("Acceleration and/or deceleration must be > 0")
-
-    @property
-    def enable(self):
-        """bool : Enable or disable the motor."""
+    def enable(self) -> bool:
+        """Enable or disable the motor."""
         return self._enable
 
     @enable.setter
@@ -114,11 +103,6 @@ class StepperBase():
         ----------
         state : bool
             The desired motor state.
-
-        Warnings
-        --------
-        UserWarning
-            If state is not a binary value.
 
         Notes
         -----
@@ -141,23 +125,22 @@ class StepperBase():
             warnings.warn("Motor is not enable and cannot move.")
 
     def moveRelSteps(self, rel_target_steps: int):
-        """"Move target steps away from current position."""
+        """Move target steps away from current position."""
         target_steps = round(self._convReltoAbs(rel_target_steps))
         self.moveAbsSteps(target_steps)
 
-    def moveAbsUnits(self, target_units: float):
+    def moveAbsDist(self, target_dist: float):
         """Move to target unit position."""
-        target_steps = round(self._convUnitsToSteps(target_units))
+        target_steps = round(self._convDistToSteps(target_dist))
         self.moveAbsSteps(target_steps)
 
-    def moveRelUnits(self, rel_target_units: float):
-        """Move target units away from current position."""
-        rel_target_steps = self._convUnitsToSteps(rel_target_units)
+    def moveRelDist(self, rel_target_dist: float):
+        """Move target dist away from current position."""
+        rel_target_steps = self._convDistToSteps(rel_target_dist)
         self.moveRelSteps(rel_target_steps)
 
-    def position(self, type: str):
-        """
-        Current position.
+    def position(self, val_type: str):
+        """Return current position in steps or dist.
 
         Parameters
         ----------
@@ -167,25 +150,23 @@ class StepperBase():
         Returns
         -------
         position : int
-            Position in either absolute units or absolute steps.
+            Position in either absolute dist or absolute steps.
 
-        Warnings
-        --------
-        UserWarning
-            If `units` or `steps` were not provided as an argument.
         """
-        output_type = self._typeSorter(type)
+        output_type = self._typeSorter(val_type)
         if output_type == self._unit_type['STEPS']:
-            return self._position_in_steps()
-        elif output_type == self._unit_type['UNITS']:
-            return self._convStepsToUnits(self._position_in_steps())
+            ret = self._position_in_steps()
+        elif output_type == self._unit_type['DIST']:
+            ret = self._convStepsToDist(self._position_in_steps())
+        return ret
 
     def isMoving(self):
         """Motor has not arrived at commanded position."""
         return self.position('steps') != self._target_steps
 
     def stop(self):
-        """
+        """Set position to target position.
+
         Stops movement by setting current position to target position. Also,
         disable the motor to ignore queued movement commands.
         """
@@ -198,7 +179,7 @@ class StepperBase():
         Parameters
         ----------
         target_position : int
-            The absolute position to travel to in units of steps.
+            The absolute position to travel to in dist of steps.
 
         Raises
         ------
@@ -222,7 +203,7 @@ class StepperBase():
         Returns
         -------
         current_position : int
-            The absolute position to travel to in units of steps.
+            The absolute position to travel to in dist of steps.
 
         Raises
         ------
@@ -239,22 +220,24 @@ class StepperBase():
     def _setSpeed(self, speed: int):
         self._steps_per_second = speed
 
-    def _typeSorter(self, type: str):
+    def _typeSorter(self, val_type: str) -> int:
         """Convert string to enum."""
-        if type in ('steps', 'Steps'):
-            return self._unit_type['STEPS']
-        elif type in ('units', 'Units'):
-            return self._unit_type['UNITS']
+        ret = self._unit_type['UNKNOWN']
+        if val_type in ('steps', 'Steps'):
+            ret = self._unit_type['STEPS']
+        elif val_type in ('dist', 'Dist'):
+            ret = self._unit_type['DIST']
         else:
-            warnings.warn("Expected `units` or `steps`.")
-            return self._unit_type['UNKNOWN']
+            warnings.warn("Expected `dist` or `steps`.")
+        return ret
 
-    def _checkMicrostep(self, microstep: int):
+    @staticmethod
+    def _checkMicrostep(microstep: int):
         """Check validity of microstep input."""
+        ret = 0
         if microstep in (1, 2, 4, 8, 16):
-            return 1
-        else:
-            return 0
+            ret = 1
+        return ret
 
     def _setMicrostep(self, microstep: int):
         """
@@ -265,26 +248,20 @@ class StepperBase():
         microstep : int
             The number of microsteps per full step.
 
-        Warnings
-        --------
-        UserError
-            If _setMicrostep has not been overridden with an
-            implementation specific function.
         """
         self._microsteps_per_full_step = microstep
         warnings.warn("Overload _setMicrostep for functionality.")
 
-    def _setAccel(self, val):
-        raise NotImplementedError('_setAccel is not overridden.')
+    def _convDistToSteps(self, dist) -> float:
+        return dist * self._micros_per_dist()
 
-    def _setDecel(self, val):
-        raise NotImplementedError('_setDecel is not overridden.')
-
-    def _convUnitsToSteps(self, units):
-        return units / self.units_per_step
-
-    def _convStepsToUnits(self, steps):
-        return steps * self.units_per_step
+    def _convStepsToDist(self, steps) -> float:
+        return steps / self._micros_per_dist()
 
     def _convReltoAbs(self, rel_steps):
         return self.position('steps') + rel_steps
+
+    def _micros_per_dist(self) -> float:
+        steps_per_dist = self.steps_per_rev / self.dist_per_rev
+        microsteps_per_dist = steps_per_dist * self._microsteps_per_full_step
+        return microsteps_per_dist
