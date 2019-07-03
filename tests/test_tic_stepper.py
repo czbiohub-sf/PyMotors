@@ -306,11 +306,6 @@ class TicStepperSer(unittest.TestCase):
         data_in = self.proc(operation[0], split_input)
         self.write.assert_called_with(data_in)
 
-    def test_accel_decel(self):
-        ac_dc_val = [1000, 10000]
-        self.tic.accel_decel = ac_dc_val
-        self.assertEqual(ac_dc_val, self.tic.accel_decel)
-
 
 def split32BitI2c(data_in):
     data_in = int(data_in)

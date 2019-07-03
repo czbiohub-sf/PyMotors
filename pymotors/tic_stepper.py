@@ -164,10 +164,10 @@ class TicStepper(StepperBase):
             warnings.warn('Limit switch not available in direction: ' + dir)
 
     def isHomed(self):
-        """
-        Check the 'position uncertain' bit on the Tic driver. The flag
-        'position uncertain' will be 1 if the motor is de-energized, commanded
-        to 'halt and hold', or contacts a limit switch. Home to clear the flag.
+        """Check the 'position uncertain' bit on the Tic driver.
+
+        The flag 'position uncertain' will be 1 if the motor is de-energized
+        or contacts a limit switch. Home to clear the flag.
 
         Returns
         -------
@@ -221,15 +221,19 @@ class TicStepper(StepperBase):
     @property
     def accel_decel(self) -> list:
         """Acceleration and deceleration values."""
-        return [self._accel, self._decel]
+        curr_accel = self.com.send(self._command_dict['gVariable'],
+                                   self._variable_dict['max_accel'])
+        curr_decel = self.com.send(self._command_dict['gVariable'],
+                                   self._variable_dict['max_decel'])
+        return [curr_accel, curr_decel]
 
     @accel_decel.setter
     def accel_decel(self, accel_decel_vals: list):
         if accel_decel_vals[0] > 0 and accel_decel_vals[1] > 0:
-            self._accel = accel_decel_vals[0]
-            self._decel = accel_decel_vals[1]
-            self._setAccel(self._accel)
-            self._setDecel(self._decel)
+            accel = accel_decel_vals[0]
+            decel = accel_decel_vals[1]
+            self._setAccel(accel)
+            self._setDecel(decel)
         else:
             warnings.warn("Acceleration and/or deceleration must be > 0")
 
