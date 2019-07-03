@@ -39,7 +39,7 @@ class TicI2c_Utilities(unittest.TestCase):
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_fake_read(self):
         self.stepper.send([0x00, 'quick'])  # purge native i2c_msg
-        self.stepper.bus.fake_register_output = [1, 2, 3, 4, 5, 6, 7, 8]
+        self.stepper.bus.fake_register_output = [self.stepper.address, 8]
         read_bits = 8
         payload = [0x33, read_bits]
         output = self.stepper.send([0xCC, 'read'], payload)
@@ -61,8 +61,10 @@ class TicSerial_Utilities(unittest.TestCase):
     def setUp(self, MockSerial):
         port_name = '/dev/ttyacm0'
         baud_rate = 9600
-        port = pymotors.tic_stepper.serial.Serial(port_name, baud_rate,
-                                             timeout=0.1, write_timeout=0.1)
+        port = pymotors.tic_stepper.serial.Serial(port_name,
+                                                  baud_rate,
+                                                  timeout=0.1,
+                                                  write_timeout=0.1)
         device_number = 14
         self.stepper = pymotors.tic_stepper.TicSerial(port, device_number)
 
@@ -125,7 +127,7 @@ class TicSerial_Utilities(unittest.TestCase):
         variable = pymotors.tic_stepper.TicStepper._variable_dict['max_speed']
         self.stepper.port.read.return_value = [1] * variable[1]
         self.stepper.send(operation, variable)
-        expected_write = self.stepper._makeSerialInput(operation[0], [variable[0]])
+        expected_write = self.stepper._makeSerialInput(operation[0], variable)
         self.stepper.port.write.assert_called_with(expected_write)
         self.stepper.port.read.assert_called_with(variable[1])
 
@@ -171,19 +173,19 @@ class TicStepper_I2c(unittest.TestCase):
         self.assertEqual([self.cmd['sMaxSpeed'][0]] + split_input[:], input[1])
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
-    def test_enabled(self):
-        self.tic.enabled = True
+    def test_enable(self):
+        self.tic.enable = True
         input = self.tic.com.bus.fakeInput()
-        self.assertEqual(self.cmd['exitSafeStart'][0], input[1])
-        self.assertEqual(True, self.tic.enabled)
-        self.tic.enabled = False
+        self.assertEqual(self.cmd['exitSafeStart'][0], input[1][0])
+        self.assertEqual(True, self.tic.enable)
+        self.tic.enable = False
         input = self.tic.com.bus.fakeInput()
-        self.assertEqual(self.cmd['deenergize'][0], input[1])
-        self.assertEqual(False, self.tic.enabled)
+        self.assertEqual(self.cmd['deenergize'][0], input[1][0])
+        self.assertEqual(False, self.tic.enable)
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_move(self):
-        self.tic.enabled = True
+        self.tic.enable = True
         self.tic.moveAbsSteps(1000)
         input = self.tic.com.bus.fakeInput()
         split_input = split32BitI2c(1000)
@@ -191,13 +193,13 @@ class TicStepper_I2c(unittest.TestCase):
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_is_homed(self):
-        not_home = [1, 1, 1, 1, 1, 1, 1, 1]
+        not_home = 3
         self.tic.com.bus.fake_register_output = not_home
         check_home = self.tic.isHomed()
         input = self.tic.com.bus.fakeInput()
-        self.assertEqual([self.cmd['gVariable'][0], self.var['misc_flags1'][0]], input[1])
+        self.assertEqual(self.var['misc_flags1'][0], input[1])
         self.assertEqual(False, check_home)
-        is_home = [1, 0, 1, 1, 1, 1, 1, 1]
+        is_home = 1
         self.tic.com.bus.fake_register_output = is_home
         check_home = self.tic.isHomed()
         self.assertEqual(True, check_home)
@@ -249,21 +251,21 @@ class TicStepper_Ser(unittest.TestCase):
         input = self.proc(operation[0], split_input)
         self.write.assert_called_with(input)
 
-    def test_enabled(self):
+    def test_enable(self):
         operation = self.cmd['exitSafeStart']
-        self.tic.enabled = True
+        self.tic.enable = True
         input = self.proc(operation[0])
         self.write.assert_called_with(input)
-        self.assertEqual(True, self.tic.enabled)
-        self.tic.enabled = False
+        self.assertEqual(True, self.tic.enable)
+        self.tic.enable = False
         operation = self.cmd['deenergize']
         input = self.proc(operation[0])
         self.write.assert_called_with(input)
-        self.assertEqual(False, self.tic.enabled)
+        self.assertEqual(False, self.tic.enable)
 
     def test_move(self):
         operation = self.cmd['sTargetPosition']
-        self.tic.enabled = True
+        self.tic.enable = True
         steps = 1000
         self.tic.moveAbsSteps(steps)
         split_input = split32BitSer(steps)
@@ -273,18 +275,33 @@ class TicStepper_Ser(unittest.TestCase):
     def test_is_homed(self):
         operation = self.cmd['gVariable']
         variable = self.var['misc_flags1']
-        not_home = [1, 1, 1, 1, 1, 1, 1, 1]
+        not_home = [3]
         self.read.return_value = not_home
         check_home = self.tic.isHomed()
-        input = self.proc(operation[0], [variable[0]])
+        input = self.proc(operation[0], variable)
         self.write.assert_called_with(input)
         self.read.assert_called_with(variable[1])
         self.assertEqual(False, check_home)
-        is_home = [1, 0, 1, 1, 1, 1, 1, 1]
+        is_home = [1]
         self.read.return_value = is_home
         check_home = self.tic.isHomed()
         self.assertEqual(True, check_home)
 
+    def test_set_accel(self):
+        ac_val = 10001
+        self.tic._setAccel(ac_val)
+        operation = self.cmd['sMaxAccel']
+        split_input = split32BitSer(ac_val)
+        input = self.proc(operation[0], split_input)
+        self.write.assert_called_with(input)
+
+    def test_set_decel(self):
+        dc_val = 1000001
+        self.tic._setDecel(dc_val)
+        operation = self.cmd['sMaxDecel']
+        split_input = split32BitSer(dc_val)
+        input = self.proc(operation[0], split_input)
+        self.write.assert_called_with(input)
 
 def split32BitI2c(input):
     input = int(input)

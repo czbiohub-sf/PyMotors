@@ -12,7 +12,7 @@ except ImportError:
 
 class TicStepper(StepperBase):
     """
-    Class for controlling stepper motors with a Adafruit Tic stepper driver.
+    Class for controlling stepper motors with a Pololu Tic stepper driver.
     Builds off of the stepper motor base class StepperBase and communicates
     with hardware either through serial or I2C. Prior to deploying the Tic
     stepper driver, it is STRONGLY recommended that the board is preconfigured
@@ -29,7 +29,7 @@ class TicStepper(StepperBase):
         Stepper speed in steps
     units_per_second : float
         Stepper speed in user defined units.
-    enabled : bool
+    enable : bool
         Software lock on stepper motion.
 
     Notes
@@ -65,36 +65,36 @@ class TicStepper(StepperBase):
         }  # documentation: https://www.pololu.com/docs/0J71/8
     _variable_dict = \
         {  # 'variable_key': [offset_address, bits_to_read]
-                'operation_state': [0x00, 8],
-                'misc_flags1': [0x01, 8],
-                'error_status': [0x02, 16],
-                'errors_occured': [0x04, 32],
-                'planning_mode': [0x09, 8],
-                'target_position': [0x0A, 32],
-                'target_velocity': [0x0E, 32],
-                'starting_speed': [0x12, 32],
-                'max_speed': [0x16, 32],
-                'max_accel': [0x1A, 32],
-                'max_decel': [0x1E, 32],
-                'curr_position': [0x22, 32],
-                'curr_velocity': [0x26, 32],
-                'acting_tar_pos': [0x2A, 32],
-                'time_since_last_step': [0x2E, 32],  # 1/3us
-                'device_rst': [0x32, 8],
-                'vin_voltage': [0x33, 16],
-                'uptime': [0x35, 32],
-                'encoder_pos': [0x39, 32],
-                'rc_pulse_width': [0x3D, 16],
-                'analog_reading_SCL': [0x3F, 16],
-                'analog_reading_SDA': [0x41, 16],
-                'analog_reading_TX': [0x43, 16],
-                'analog_reading_RX': [0x45, 16],
-                'digital_readings': [0x47, 8],
-                'pin_states': [0x48, 8],
-                'step_mode': [0x49, 8],
-                'current_limit': [0x4A, 8],
-                'input_state': [0x4C, 8],
-                'last_driver_error': [0x55, 8],
+                'operation_state': [0x00, 1],
+                'misc_flags1': [0x01, 1],
+                'error_status': [0x02, 2],
+                'errors_occured': [0x04, 4],
+                'planning_mode': [0x09, 1],
+                'target_position': [0x0A, 4],
+                'target_velocity': [0x0E, 4],
+                'starting_speed': [0x12, 4],
+                'max_speed': [0x16, 4],
+                'max_accel': [0x1A, 4],
+                'max_decel': [0x1E, 4],
+                'curr_position': [0x22, 4],
+                'curr_velocity': [0x26, 4],
+                'acting_tar_pos': [0x2A, 4],
+                'time_since_last_step': [0x2E, 4],  # 1/3us
+                'device_rst': [0x32, 1],
+                'vin_voltage': [0x33, 2],
+                'uptime': [0x35, 4],
+                'encoder_pos': [0x39, 4],
+                'rc_pulse_width': [0x3D, 2],
+                'analog_reading_SCL': [0x3F, 2],
+                'analog_reading_SDA': [0x41, 2],
+                'analog_reading_TX': [0x43, 2],
+                'analog_reading_RX': [0x45, 2],
+                'digital_readings': [0x47, 1],
+                'pin_states': [0x48, 1],
+                'step_mode': [0x49, 1],
+                'current_limit': [0x4A, 1],
+                'input_state': [0x4C, 1],
+                'last_driver_error': [0x55, 1],
         }  # documentation: https://www.pololu.com/docs/0J71/7
 
     _setting_dict = \
@@ -145,7 +145,10 @@ class TicStepper(StepperBase):
         limit_available = self._checkLimitSwitch(dir)
         if limit_available:
             command_to_send = self._command_dict['goHome']
-            data = dir
+            if dir == 'fwd':
+                data = 1
+            else:
+                data = 0
             self.com.send(command_to_send, data)
         else:
             warnings.warn('Limit switch not available in direction: ' + dir)
@@ -164,23 +167,23 @@ class TicStepper(StepperBase):
         command_to_send = self._command_dict['gVariable']
         data = self._variable_dict['misc_flags1']
         b = self.com.send(command_to_send, data)
-        position_known = b[1] == 0
+        position_known = (b[0] & 2) == 0
         return position_known
 
     @property
-    def enabled(self):
+    def enable(self):
         """
         Check the enable state of the motor.
 
         Returns
         -------
-        _enabled : bool
-            True if the motor is enabled, False if the motor is disabled.
+        _enable : bool
+            True if the motor is enable, False if the motor is disabled.
         """
-        return self._enabled
+        return self._enable
 
-    @enabled.setter
-    def enabled(self, state):
+    @enable.setter
+    def enable(self, state):
         """
         Enable or disable the motor.
 
@@ -195,15 +198,15 @@ class TicStepper(StepperBase):
         If state is not a boolean value.
         """
         if state == self._enable_states['DISABLED']:
-            self._enabled = self._enable_states['DISABLED']
+            self._enable = self._enable_states['DISABLED']
             self.com.send(self._command_dict['enterSafeStart'])
             self.com.send(self._command_dict['deenergize'])
         elif state == self._enable_states['ENABLED']:
-            self._enabled = self._enable_states['ENABLED']
+            self._enable = self._enable_states['ENABLED']
             self.com.send(self._command_dict['energize'])
             self.com.send(self._command_dict['exitSafeStart'])
         else:
-            warnings.warn('Expected `False` (disabled) or `True` (enabled)')
+            warnings.warn('Expected `False` (disabled) or `True` (enable)')
 
     def _position_in_steps(self):
         """
@@ -216,7 +219,7 @@ class TicStepper(StepperBase):
         location = b[0] + (b[1] << 8) + (b[2] << 16) + (b[3] << 24)
         if location >= (1 << 31):
             location -= (1 << 32)
-            return location
+        return location
 
     def _moveToTarget(self):
         command_to_send = self._command_dict['sTargetPosition']
@@ -237,10 +240,22 @@ class TicStepper(StepperBase):
             return 0
         return 1
 
+    def _setAccel(self, val):
+        command_to_send = self._command_dict['sMaxAccel']
+        data = val
+        self.com.send(command_to_send, data)
+
+    def _setDecel(self, val):
+        command_to_send = self._command_dict['sMaxDecel']
+        data = val
+        self.com.send(command_to_send, data)
+
     def _setMicrostep(self, microstep: int):
         self._microsteps_per_full_step = microstep
         command_to_send = self._command_dict['sStepMode']
-        data = (microstep == 0b10) + (microstep == 0b100)*2 + (microstep == 0b1000)*3
+        data = (microstep == 0b10) \
+            + (microstep == 0b100)*2 \
+            + (microstep == 0b1000)*3
         self.com.send(command_to_send, data)
 
     def _setSpeed(self, speed):
@@ -259,7 +274,7 @@ class TicStepper(StepperBase):
 
 class TicSerial(object):
     """
-    Serial communication protocol for operating an Adafruit Tic stepper driver.
+    Serial communication protocol for operating a Tic stepper driver.
 
     Attributes
     ----------
@@ -282,7 +297,7 @@ class TicSerial(object):
         if data is None:
             return bytes(header)
         else:
-            return bytes(header + data)
+            return bytes(header + list(data))
 
     def send(self, operation: list, data: list = None):
         """
@@ -307,7 +322,7 @@ class TicSerial(object):
             command = self._makeSerialInput(offset)
             read = False
         elif protocol == 'read':  # Block read
-            command = self._makeSerialInput(offset, [data[0]])
+            command = self._makeSerialInput(offset, data)
             read = True
         elif protocol == 7:  # 7-bit write
             data = [int(data)]
@@ -339,7 +354,7 @@ class TicSerial(object):
 
 class TicI2C(object):
     """
-    I2C communication protocol for operating an Adafruit Tic stepper driver.
+    I2C communication protocol for operating a Tic stepper driver.
 
     Attributes
     ----------
@@ -374,7 +389,7 @@ class TicI2C(object):
         offset = operation[0]
         protocol = operation[1]
         if protocol == 'quick':  # Quick write
-            command = offset
+            command = [offset]
             read = None
         elif protocol == 'read':  # Block read
             command = [offset, data[0]]
@@ -394,8 +409,7 @@ class TicI2C(object):
             warnings.warn('Protocol `{}` not recognized.'.format(protocol))
 
         write = i2c_msg.write(self.address, command)
-        if read is None:
-            self.bus.i2c_rdwr(write)
-        else:
-            self.bus.i2c_rdwr(write, read)
+        self.bus.i2c_rdwr(write)
+        if read is not None:
+            self.bus.i2c_rdwr(read)
             return list(read)

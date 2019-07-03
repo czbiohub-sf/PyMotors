@@ -17,7 +17,7 @@ class StepperBase():
         Stepper speed in steps
     units_per_second : float
         Stepper speed in user defined units.
-    enabled : bool
+    enable : bool
         Software lock on stepper motion.
 
     Notes
@@ -32,8 +32,8 @@ class StepperBase():
                  input_units_per_second=10):
         self.microsteps = input_microsteps
         self.units_per_step = input_units_per_step
-        self._steps_per_second = input_units_per_second
-        self._enabled = self._enable_states['DISABLED']
+        self.steps_per_second = input_units_per_second
+        self.enable = self._enable_states['DISABLED']
         self._target_steps = 0
 
     @property
@@ -87,12 +87,26 @@ class StepperBase():
             warnings.warn("Speed must be greater than 0.")
 
     @property
-    def enabled(self):
-        """bool : Enable or disable the motor."""
-        return self._enabled
+    def accel_decel(self):
+        return [self._accel, self._decel]
 
-    @enabled.setter
-    def enabled(self, state):
+    @accel_decel.setter
+    def accel_decel(self, accel_decel_vals: list):
+        if accel_decel_vals[0] > 0 and accel_decel_vals[1] > 0:
+            self._accel = accel_decel_vals[0]
+            self._decel = accel_decel_vals[1]
+            self._setAccel(self._accel)
+            self._setDecel(self._decel)
+        else:
+            warnings.warn("Acceleration and/or deceleration must be > 0")
+
+    @property
+    def enable(self):
+        """bool : Enable or disable the motor."""
+        return self._enable
+
+    @enable.setter
+    def enable(self, state):
         """
         Enable or disable the motor.
 
@@ -112,19 +126,19 @@ class StepperBase():
 
         """
         if state == self._enable_states['DISABLED']:
-            self._enabled = self._enable_states['DISABLED']
+            self._enable = self._enable_states['DISABLED']
         elif state == self._enable_states['ENABLED']:
-            self._enabled = self._enable_states['ENABLED']
+            self._enable = self._enable_states['ENABLED']
         else:
-            warnings.warn('Expected `False` (disabled) or `True` (enabled)')
+            warnings.warn('Expected `False` (disabled) or `True` (enable)')
 
     def moveAbsSteps(self, target_steps: int):
         """Move to target step position."""
-        if self._enabled:
+        if self._enable:
             self._target_steps = target_steps
             self._moveToTarget()
         else:
-            warnings.warn("Motor is not enabled and cannot move.")
+            warnings.warn("Motor is not enable and cannot move.")
 
     def moveRelSteps(self, rel_target_steps: int):
         """"Move target steps away from current position."""
@@ -175,8 +189,7 @@ class StepperBase():
         Stops movement by setting current position to target position. Also,
         disable the motor to ignore queued movement commands.
         """
-        self._target_steps = self.position('steps')
-        self.enabled = self._enable_states['DISABLED']
+        self.moveRelSteps(0)
 
     def _moveToTarget(self):
         """
@@ -198,6 +211,7 @@ class StepperBase():
         Function should account for _target_steps when implemented.
         Function should account for the current position in absolute steps.
         Function should account for _steps_per_second when implemented.
+        Function should account for _accel and _decel when implemented.
         """
         raise NotImplementedError('_moveTo is not overridden.')
 
@@ -259,6 +273,12 @@ class StepperBase():
         """
         self._microsteps_per_full_step = microstep
         warnings.warn("Overload _setMicrostep for functionality.")
+
+    def _setAccel(self, val):
+        raise NotImplementedError('_setAccel is not overridden.')
+
+    def _setDecel(self, val):
+        raise NotImplementedError('_setDecel is not overridden.')
 
     def _convUnitsToSteps(self, units):
         return units / self.units_per_step
