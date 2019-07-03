@@ -45,7 +45,7 @@ Class2:
 function1:
 * Purpose
 
-## Requirements
+## Dependencies
 In order for this module to function, the following
 packages will be installed:
 * dependency1
