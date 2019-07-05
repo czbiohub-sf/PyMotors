@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="pymotors",
-    version="1.0.0",
+    version="1.0.1",
     author="Robert R. Puccinelli",
     author_email="robert.puccinelli@outlook.com",
     description="Motor utilities for general use.",

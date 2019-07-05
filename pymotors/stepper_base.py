@@ -9,16 +9,25 @@ class StepperBase():
     implementation specifics. Provides movement commands in absolute and
     relative positions described in steps or units per step.
 
+    Parameters
+    ----------
+    dist_per_rev : float
+        Number of user defined units per revolution.
+    steps_per_rev : int
+        Number of steps per revolution.
+    rpm : float
+        Initial max speed in revolutions per minute.
+
     Attributes
     ----------
     microsteps : float
         Ratio of full steps to microsteps.
     dist_per_rev : float
-        Conversion factor converting steps into user defined units.
+        Number of user defined units per revolution.
     dist_per_min : float
-        Speed in distance units per minute.
+        Speed in user defined distance units per minute.
     rpm : float
-        Stepper speed in user defined units.
+        Max speed of stepper motor in revolutions per minute.
     enable : bool
         Enable or disable stepper motion.
 

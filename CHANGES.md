@@ -1,6 +1,10 @@
 # Relase notes
 
 All notable changes to this project will be documented in this file. This module adheres to [Semantic Versioning](https://semver.org/).
+
+## 1.0.1
+- Minor corrections to StepperBase and TicStepper documentation.
+
 ## 1.0.0
 - Replace steps_per_second with rpm
 - Replace units_per_second with dist_per_min

@@ -37,11 +37,24 @@ class TicStepper(StepperBase):
     address : int
         Device address on bus.
     input_dist_per_rev : float
-        Conversion factor of distance units per full step.
+        Conversion factor of user defined distance units per revolution.
     input_steps_per_rev : int
         Number of steps per revolution.
-    input_rpm : com_type
-        Initial revolutions per minute following initialization.
+    input_rpm : float
+        Initial max speed in revolutions per minute.
+
+    Attributes
+    ----------
+    microsteps : float
+        Ratio of full steps to microsteps.
+    dist_per_rev : float
+        Number of user defined units per revolution.
+    dist_per_min : float
+        Speed in user defined distance units per minute.
+    rpm : float
+        Max speed of stepper motor in revolutions per minute.
+    enable : bool
+        Enable or disable stepper motion.
 
     """
 
