@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file. This module
 - Account for microsteps in step <-> dist conversion
 - Make speed independent of microsteps setting
 - Remove accel/decel methods from StepperBase and move to TicStepper
+- Add additional documentation
+- Create hardware testing script for evaluating method behavior on RPi
 
 ## 0.1.0
 - Add accel/decel method to StepperBase with tests
