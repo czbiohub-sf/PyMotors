@@ -8,7 +8,7 @@ def eval_tic(tic):
     print('WARNING! MOTOR ROTOR MUST BE DECOUPLED FROM SYSTEM BEFORE TESTING')
 #    print('Tape on the motor shaft will help visualize motion.')
     sleep(2)
-    print('Motor will begin moving shortly. Press `CTL-C` to abort.')
+    print('Press `CTL-C` to abort.')
     print('Beginning in:')
     print('3')
     sleep(1)
