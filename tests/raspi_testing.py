@@ -1,10 +1,13 @@
+"""Evaluate Tic stepper driver with a Raspberry Pi."""
 from time import sleep
 import pymotors
 
 
-def eval_tic(tic: pymotors.TicStepper):
+def eval_tic(tic):
     """Short testing script to confirm functionality."""
-    print('Tape on the motor shaft will help visualize motion.')
+    print('WARNING! MOTOR ROTOR MUST BE DECOUPLED FROM SYSTEM BEFORE TESTING')
+#    print('Tape on the motor shaft will help visualize motion.')
+    sleep(2)
     print('Motor will begin moving shortly. Press `CTL-C` to abort.')
     print('Beginning in:')
     print('3')
@@ -17,41 +20,41 @@ def eval_tic(tic: pymotors.TicStepper):
     print('Enabling motor.')
     sleep(1)
     tic.enable = True
+    tic.microsteps = 1
 
-    print('Moving clockwise at default speed for 100 steps.')
+    print('Moving clockwise at default speed for 50 steps.')
     sleep(1)
-    tic.moveAbsSteps(100)
+    tic.moveAbsSteps(50)
     wait_for_motor(tic)
 
-    print('Changing velocity to 10 RPM + moving 200 steps counter clockwise.')
+    print('Changing velocity to 10 RPM + moving 250 steps counter clockwise.')
     sleep(1)
     tic.rpm = 10
-    tic.moveRelSteps(-200)
+    tic.moveRelSteps(-250)
     wait_for_motor(tic)
 
-    print('Changing microsteps to 1/8 + moving 200 steps clockwise.')
-    print('NOTE: Speed should not change when using microsteps.')
+    print('Changing microsteps to 1/8 + moving 800 steps clockwise.')
+    print('NOTE: RPM should not change when using microsteps.')
     sleep(1)
     tic.microsteps = 1/8
-    tic.moveRelSteps(200)
+    tic.moveRelSteps(800)
     wait_for_motor(tic)
 
     print('Updating accel/decel + moving to position 0.')
-    print('NOTE: Movement confirms that microstepping is behaving properly.')
     sleep(1)
-    tic.accel_decel = tic.accel_decel * 8
+    tic.accel_decel = [0x70000000, 0x70000000]
     tic.moveAbsDist(0)
     wait_for_motor(tic)
 
-    print('Moving 10 revolutions clockwise at max recommended speed.')
+    print('Moving 20 revolutions clockwise at max recommended speed.')
     sleep(1)
     tic.dist_per_min = 200
-    tic.moveRelDist(10)
+    tic.moveRelDist(20)
     wait_for_motor(tic)
 
     print('Moving to position 0 + evaluating stop command')
     tic.moveAbsDist(0)
-    sleep(1)
+    sleep(2)
     tic.stop()
     wait_for_motor(tic)
 
@@ -65,10 +68,13 @@ def eval_tic(tic: pymotors.TicStepper):
 
 def wait_for_motor(motor):
     """Wait for motor to finish moving."""
+    sleep(.1)
     while motor.isMoving():
-        pass
+        sleep(.2)
+#        print('Current position: {}'.format(motor._position_in_steps()))
+        sleep(.1)
 
 
 if __name__ == '__main__':
-    TIC = pymotors.TicStepper('I2C', '/dev/i2c-0', 14)
+    TIC = pymotors.TicStepper('I2C', 1, 14)
     eval_tic(TIC)

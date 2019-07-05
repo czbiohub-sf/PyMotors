@@ -116,8 +116,8 @@ class TicStepper(StepperBase):
     def __init__(self, type: str,
                  port_params,
                  address=None,
-                 input_microsteps=1,
                  input_dist_per_rev=1,
+                 input_steps_per_rev=200,
                  input_rpm=10):
 
         if self._communicationProtocol(type) == self._com_protocol['SERIAL']:
@@ -129,9 +129,9 @@ class TicStepper(StepperBase):
 
         elif self._communicationProtocol(type) == self._com_protocol['I2C']:
             self.com = TicI2C(port_params, address)
-
-        super(TicStepper, self).__init__(input_microsteps,
-                                         input_dist_per_rev,
+        self.com.send(self._command_dict['rst'])
+        super(TicStepper, self).__init__(input_dist_per_rev,
+                                         input_steps_per_rev,
                                          input_rpm)
 
     def home(self, dir: str):
@@ -225,7 +225,9 @@ class TicStepper(StepperBase):
                                    self._variable_dict['max_accel'])
         curr_decel = self.com.send(self._command_dict['gVariable'],
                                    self._variable_dict['max_decel'])
-        return [curr_accel, curr_decel]
+        int_accel = self.bytesToInt(curr_accel)
+        int_decel = self.bytesToInt(curr_decel)
+        return [int_accel, int_decel]
 
     @accel_decel.setter
     def accel_decel(self, accel_decel_vals: list):
@@ -246,7 +248,7 @@ class TicStepper(StepperBase):
         command_to_send = self._command_dict['gVariable']
         data = self._variable_dict['curr_position']
         b = self.com.send(command_to_send, data)
-        location = b[0] + (b[1] << 8) + (b[2] << 16) + (b[3] << 24)
+        location = self.bytesToInt(b)
         if location >= (1 << 31):
             location -= (1 << 32)
         return location
@@ -316,6 +318,12 @@ class TicStepper(StepperBase):
             return self._com_protocol['I2C']
         else:
             raise ValueError('Expected protocol type `serial` or `i2c`.')
+
+    @staticmethod
+    def bytesToInt(b: list) -> int:
+        """Convert 32-bit output to int."""
+        val = b[0] + (b[1] << 8) + (b[2] << 16) + (b[3] << 24)
+        return val
 
 
 class TicSerial(object):
