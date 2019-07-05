@@ -1,11 +1,14 @@
+"""Pololu Tic stepper driver unit tests."""
 import unittest
 from unittest.mock import patch
 import warnings
 import pymotors
 import tests.fake_smbus2 as fake_smbus2
+# pylint: disable=protected-access
+# pylint: disable=missing-docstring
 
 
-class TicI2c_Utilities(unittest.TestCase):
+class TicI2cUtilities(unittest.TestCase):
 
     @patch.object(pymotors.tic_stepper.TicI2C, '__init__', return_value=None)
     def setUp(self, mockInit):
@@ -15,12 +18,12 @@ class TicI2c_Utilities(unittest.TestCase):
 
     def test_fake_quick_send(self):
         output = self.stepper.send([0x99, 'quick'])
-        self.assertEqual(None, output)
+        self.assertEqual([], output)
 
     def test_fake_7bit_send(self):
         payload = 124
         output = self.stepper.send([0xAA, 7], payload)
-        self.assertEqual(None, output)
+        self.assertEqual([], output)
 
     def test_data_larger_than_7_bit(self):
         payload = 1024
@@ -34,7 +37,7 @@ class TicI2c_Utilities(unittest.TestCase):
     def test_fake_32bit_send(self):
         payload = 2147483647
         output = self.stepper.send([0xBB, 32], payload)
-        self.assertEqual(None, output)
+        self.assertEqual([], output)
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_fake_read(self):
@@ -46,17 +49,17 @@ class TicI2c_Utilities(unittest.TestCase):
         self.assertEqual(self.stepper.bus.fake_register_output, output)
 
     @patch('pymotors.tic_stepper.i2c_msg')
-    def test_fake_32_processing(self, mockI2c):
-        mockI2c.write = fake_smbus2.i2c_msg.write
+    def test_fake_32_processing(self, mock_i2c):
+        mock_i2c.write = fake_smbus2.i2c_msg.write
         payload = 0x7FFFFFFF
         offset = 0xBB
         address = self.stepper.address
         self.stepper.send([offset, 32], payload)
-        input = self.stepper.bus.fakeInput()
-        self.assertEqual([address, [offset, 0xFF, 0xFF, 0xFF, 0x7F]], input)
+        data_in = self.stepper.bus.fakeInput()
+        self.assertEqual([address, [offset, 0xFF, 0xFF, 0xFF, 0x7F]], data_in)
 
 
-class TicSerial_Utilities(unittest.TestCase):
+class TicSerialUtilities(unittest.TestCase):
     @patch('pymotors.tic_stepper.serial')
     def setUp(self, MockSerial):
         port_name = '/dev/ttyacm0'
@@ -132,7 +135,7 @@ class TicSerial_Utilities(unittest.TestCase):
         self.stepper.port.read.assert_called_with(variable[1])
 
 
-class TicStepper_I2c(unittest.TestCase):
+class TicStepperI2c(unittest.TestCase):
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     @patch('pymotors.tic_stepper.SMBus', new=fake_smbus2.SMBus)
     def setUp(self):
@@ -144,60 +147,62 @@ class TicStepper_I2c(unittest.TestCase):
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_set_microstep(self):
         self.tic.microsteps = 1/8
-        input = self.tic.com.bus.fakeInput()
-        self.assertEqual([self.cmd['sStepMode'][0], 3], input[1])
+        data_in = self.tic.com.bus.fakeInput()
+        self.assertEqual([self.cmd['sStepMode'][0], 3], data_in[1])
         micros = self.tic.microsteps
         self.assertEqual(1/8, micros)
         self.tic.microsteps = 1/4
-        input = self.tic.com.bus.fakeInput()
-        self.assertEqual([self.cmd['sStepMode'][0], 2], input[1])
+        data_in = self.tic.com.bus.fakeInput()
+        self.assertEqual([self.cmd['sStepMode'][0], 2], data_in[1])
         self.tic.microsteps = 1/2
-        input = self.tic.com.bus.fakeInput()
-        self.assertEqual([self.cmd['sStepMode'][0], 1], input[1])
+        data_in = self.tic.com.bus.fakeInput()
+        self.assertEqual([self.cmd['sStepMode'][0], 1], data_in[1])
         self.tic.microsteps = 1
-        input = self.tic.com.bus.fakeInput()
-        self.assertEqual([self.cmd['sStepMode'][0], 0], input[1])
+        data_in = self.tic.com.bus.fakeInput()
+        self.assertEqual([self.cmd['sStepMode'][0], 0], data_in[1])
         try:
             warned = False
             self.tic.microsteps = 1/6
-            input = self.tic.com.bus.fakeInput()
+            data_in = self.tic.com.bus.fakeInput()
         except UserWarning:
             warned = True
         self.assertEqual(True, warned)
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
-    def test_steps_per_second(self):
-        self.tic.steps_per_second = .01
-        input = self.tic.com.bus.fakeInput()
-        split_input = split32BitI2c(self.tic.steps_per_second * 10000)
-        self.assertEqual([self.cmd['sMaxSpeed'][0]] + split_input[:], input[1])
+    def test_rpm_call(self):
+        rpm = 0.1
+        self.tic.rpm = rpm
+        data_in = self.tic.com.bus.fakeInput()
+        steps_per_sec = rpm * self.tic.steps_per_rev / 60
+        split_input = split32BitI2c(steps_per_sec * 10000)
+        self.assertEqual([self.cmd['sMaxSpeed'][0]] + split_input[:], data_in[1])
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_enable(self):
         self.tic.enable = True
-        input = self.tic.com.bus.fakeInput()
-        self.assertEqual(self.cmd['exitSafeStart'][0], input[1][0])
+        data_in = self.tic.com.bus.fakeInput()
+        self.assertEqual(self.cmd['exitSafeStart'][0], data_in[1][0])
         self.assertEqual(True, self.tic.enable)
         self.tic.enable = False
-        input = self.tic.com.bus.fakeInput()
-        self.assertEqual(self.cmd['deenergize'][0], input[1][0])
+        data_in = self.tic.com.bus.fakeInput()
+        self.assertEqual(self.cmd['deenergize'][0], data_in[1][0])
         self.assertEqual(False, self.tic.enable)
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_move(self):
         self.tic.enable = True
         self.tic.moveAbsSteps(1000)
-        input = self.tic.com.bus.fakeInput()
+        data_in = self.tic.com.bus.fakeInput()
         split_input = split32BitI2c(1000)
-        self.assertEqual([self.cmd['sTargetPosition'][0]] + split_input, input[1])
+        self.assertEqual([self.cmd['sTargetPosition'][0]] + split_input, data_in[1])
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_is_homed(self):
         not_home = 3
         self.tic.com.bus.fake_register_output = not_home
         check_home = self.tic.isHomed()
-        input = self.tic.com.bus.fakeInput()
-        self.assertEqual(self.var['misc_flags1'][0], input[1])
+        data_in = self.tic.com.bus.fakeInput()
+        self.assertEqual(self.var['misc_flags1'][0], data_in[1])
         self.assertEqual(False, check_home)
         is_home = 1
         self.tic.com.bus.fake_register_output = is_home
@@ -205,7 +210,7 @@ class TicStepper_I2c(unittest.TestCase):
         self.assertEqual(True, check_home)
 
 
-class TicStepper_Ser(unittest.TestCase):
+class TicStepperSer(unittest.TestCase):
     @patch('pymotors.tic_stepper.serial')
     def setUp(self, MockSerial):
         port_name = '/dev/ttyacm0'
@@ -223,19 +228,19 @@ class TicStepper_Ser(unittest.TestCase):
     def test_set_microstep(self):
         operation = self.cmd['sStepMode']
         self.tic.microsteps = 1/8
-        input = self.proc(operation[0], [3])
-        self.write.assert_called_with(input)
+        data_in = self.proc(operation[0], [3])
+        self.write.assert_called_with(data_in)
         micros = self.tic.microsteps
         self.assertEqual(1/8, micros)
         self.tic.microsteps = 1/4
-        input = self.proc(operation[0], [2])
-        self.write.assert_called_with(input)
+        data_in = self.proc(operation[0], [2])
+        self.write.assert_called_with(data_in)
         self.tic.microsteps = 1/2
-        input = self.proc(operation[0], [1])
-        self.write.assert_called_with(input)
+        data_in = self.proc(operation[0], [1])
+        self.write.assert_called_with(data_in)
         self.tic.microsteps = 1
-        input = self.proc(operation[0], [0])
-        self.write.assert_called_with(input)
+        data_in = self.proc(operation[0], [0])
+        self.write.assert_called_with(data_in)
         try:
             warned = False
             self.tic.microsteps = 1/6
@@ -243,24 +248,30 @@ class TicStepper_Ser(unittest.TestCase):
             warned = True
         self.assertEqual(True, warned)
 
-    def test_steps_per_second(self):
+    def test_rpm_value_retained(self):
+        val = 0.01
+        self.tic.rpm = val
+        self.assertEqual(val, self.tic.rpm)
+
+    def test_rpm_call(self):
         operation = self.cmd['sMaxSpeed']
-        data = .01
-        self.tic.steps_per_second = data
-        split_input = split32BitSer(data * 10000)
-        input = self.proc(operation[0], split_input)
-        self.write.assert_called_with(input)
+        rpm = 2
+        self.tic.rpm = rpm
+        steps_per_sec = rpm * self.tic.steps_per_rev / 60
+        split_input = split32BitSer(steps_per_sec * 10000)
+        data_in = self.proc(operation[0], split_input)
+        self.write.assert_called_with(data_in)
 
     def test_enable(self):
         operation = self.cmd['exitSafeStart']
         self.tic.enable = True
-        input = self.proc(operation[0])
-        self.write.assert_called_with(input)
+        data_in = self.proc(operation[0])
+        self.write.assert_called_with(data_in)
         self.assertEqual(True, self.tic.enable)
         self.tic.enable = False
         operation = self.cmd['deenergize']
-        input = self.proc(operation[0])
-        self.write.assert_called_with(input)
+        data_in = self.proc(operation[0])
+        self.write.assert_called_with(data_in)
         self.assertEqual(False, self.tic.enable)
 
     def test_move(self):
@@ -269,8 +280,8 @@ class TicStepper_Ser(unittest.TestCase):
         steps = 1000
         self.tic.moveAbsSteps(steps)
         split_input = split32BitSer(steps)
-        input = self.proc(operation[0], split_input)
-        self.write.assert_called_with(input)
+        data_in = self.proc(operation[0], split_input)
+        self.write.assert_called_with(data_in)
 
     def test_is_homed(self):
         operation = self.cmd['gVariable']
@@ -278,8 +289,8 @@ class TicStepper_Ser(unittest.TestCase):
         not_home = [3]
         self.read.return_value = not_home
         check_home = self.tic.isHomed()
-        input = self.proc(operation[0], variable)
-        self.write.assert_called_with(input)
+        data_in = self.proc(operation[0], variable)
+        self.write.assert_called_with(data_in)
         self.read.assert_called_with(variable[1])
         self.assertEqual(False, check_home)
         is_home = [1]
@@ -292,36 +303,37 @@ class TicStepper_Ser(unittest.TestCase):
         self.tic._setAccel(ac_val)
         operation = self.cmd['sMaxAccel']
         split_input = split32BitSer(ac_val)
-        input = self.proc(operation[0], split_input)
-        self.write.assert_called_with(input)
+        data_in = self.proc(operation[0], split_input)
+        self.write.assert_called_with(data_in)
 
     def test_set_decel(self):
         dc_val = 1000001
         self.tic._setDecel(dc_val)
         operation = self.cmd['sMaxDecel']
         split_input = split32BitSer(dc_val)
-        input = self.proc(operation[0], split_input)
-        self.write.assert_called_with(input)
+        data_in = self.proc(operation[0], split_input)
+        self.write.assert_called_with(data_in)
 
-def split32BitI2c(input):
-    input = int(input)
-    output = [input >> 0 & 0xFF,
-              input >> 8 & 0xFF,
-              input >> 16 & 0xFF,
-              input >> 24 & 0xFF]
+
+def split32BitI2c(data_in):
+    data_in = int(data_in)
+    output = [data_in >> 0 & 0xFF,
+              data_in >> 8 & 0xFF,
+              data_in >> 16 & 0xFF,
+              data_in >> 24 & 0xFF]
     return output
 
 
-def split32BitSer(input):
-    input = int(input)
-    output = [((input >> 7) & 1)
-              | ((input >> 14) & 2)
-              | ((input >> 21) & 4)
-              | ((input >> 28) & 8),
-              input >> 0 & 0x7F,
-              input >> 8 & 0x7F,
-              input >> 16 & 0x7F,
-              input >> 24 & 0x7F]
+def split32BitSer(data_in):
+    data_in = int(data_in)
+    output = [((data_in >> 7) & 1)
+              | ((data_in >> 14) & 2)
+              | ((data_in >> 21) & 4)
+              | ((data_in >> 28) & 8),
+              data_in >> 0 & 0x7F,
+              data_in >> 8 & 0x7F,
+              data_in >> 16 & 0x7F,
+              data_in >> 24 & 0x7F]
     return output
 
 
