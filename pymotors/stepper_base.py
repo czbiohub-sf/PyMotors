@@ -11,26 +11,20 @@ class StepperBase():
 
     Attributes
     ----------
-    microsteps : int
+    microsteps : float
         Ratio of full steps to microsteps.
     dist_per_rev : float
         Conversion factor converting steps into user defined units.
-    steps_per_second : float
-        Stepper speed in steps
+    dist_per_min : float
+        Speed in distance units per minute.
     rpm : float
         Stepper speed in user defined units.
     enable : bool
-        Software lock on stepper motion.
-
-    Notes
-    -----
-    If using `units`, set microsteps before dist_per_rev if using microsteps.
-    Set dist_per_rev before rpm.
+        Enable or disable stepper motion.
 
     """
 
     # pylint: disable=invalid-name
-    # pylint: disable=too-many-instance-attributes
 
     _enable_states = {'DISABLED': False, 'ENABLED': True}
     _unit_type = {'UNKNOWN': -1, 'STEPS': 0, 'DIST': 1}
@@ -47,7 +41,7 @@ class StepperBase():
 
     @property
     def microsteps(self) -> float:
-        """Fraction of a stepper motor full step per pulse."""
+        """Fraction of a stepper motor full steps per pulse."""
         return 1 / self._microsteps_per_full_step
 
     @microsteps.setter
@@ -62,8 +56,8 @@ class StepperBase():
             warnings.warn("Microstep value not available.")
 
     @property
-    def dist_per_min(self):
-        """Speed in distance per minute."""
+    def dist_per_min(self) -> float:
+        """Speed in distance units per minute."""
         return round(self._convStepsToDist(self._steps_per_second) * 60, 3)
 
     @dist_per_min.setter
@@ -83,7 +77,6 @@ class StepperBase():
 
     @rpm.setter
     def rpm(self, revs_per_min: float):
-        """Set dist_per_rev before calling rpm."""
         if revs_per_min > 0:
             self.dist_per_min = revs_per_min * self.dist_per_rev
         else:
@@ -130,16 +123,16 @@ class StepperBase():
         self.moveAbsSteps(target_steps)
 
     def moveAbsDist(self, target_dist: float):
-        """Move to target unit position."""
+        """Move to target distance units away from 0."""
         target_steps = round(self._convDistToSteps(target_dist))
         self.moveAbsSteps(target_steps)
 
     def moveRelDist(self, rel_target_dist: float):
-        """Move target dist away from current position."""
+        """Move target distance units away from current position."""
         rel_target_steps = self._convDistToSteps(rel_target_dist)
         self.moveRelSteps(rel_target_steps)
 
-    def position(self, val_type: str):
+    def position(self, unit_type: str) -> float:
         """Return current position in steps or dist.
 
         Parameters
@@ -153,14 +146,14 @@ class StepperBase():
             Position in either absolute dist or absolute steps.
 
         """
-        output_type = self._typeSorter(val_type)
+        output_type = self._typeSorter(unit_type)
         if output_type == self._unit_type['STEPS']:
             ret = self._position_in_steps()
         elif output_type == self._unit_type['DIST']:
             ret = self._convStepsToDist(self._position_in_steps())
         return ret
 
-    def isMoving(self):
+    def isMoving(self) -> bool:
         """Motor has not arrived at commanded position."""
         return self.position('steps') != self._target_steps
 
@@ -196,7 +189,7 @@ class StepperBase():
         """
         raise NotImplementedError('_moveTo is not overridden.')
 
-    def _position_in_steps(self):
+    def _position_in_steps(self) -> int:
         """
         Retreive the current position in steps.
 
@@ -221,7 +214,7 @@ class StepperBase():
         self._steps_per_second = speed
 
     def _typeSorter(self, val_type: str) -> int:
-        """Convert string to enum."""
+        """Convert string to int."""
         ret = self._unit_type['UNKNOWN']
         if val_type in ('steps', 'Steps'):
             ret = self._unit_type['STEPS']
@@ -232,11 +225,11 @@ class StepperBase():
         return ret
 
     @staticmethod
-    def _checkMicrostep(microstep: int):
+    def _checkMicrostep(microstep: int) -> bool:
         """Check validity of microstep input."""
-        ret = 0
+        ret = False
         if microstep in (1, 2, 4, 8, 16):
-            ret = 1
+            ret = True
         return ret
 
     def _setMicrostep(self, microstep: int):
@@ -258,7 +251,7 @@ class StepperBase():
     def _convStepsToDist(self, steps) -> float:
         return steps / self._micros_per_dist()
 
-    def _convReltoAbs(self, rel_steps):
+    def _convReltoAbs(self, rel_steps) -> int:
         return self.position('steps') + rel_steps
 
     def _micros_per_dist(self) -> float:

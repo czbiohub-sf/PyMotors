@@ -22,29 +22,26 @@ try:  # Import serial module
 except ImportError:
     print('Unable to import pyserial for Tic serial communication.')
 
+# pylint: disable=invalid-name
+
 
 class TicStepper(StepperBase):
-    """Short summary.
+    """Base class for Pololu Tic stepper driver.
 
     Parameters
     ----------
-    type : str
+    com_type : str
         Communication protocol `I2C` or `SERIAL`.
-    port_params : list, str
-        (Serial) -> [port: str, baud: int] || (I2C) -> port: str.
+    port_params : list or int
+        (Serial) -> [port: str, baud: int] || (I2C) -> port: int.
     address : int
         Device address on bus.
-    input_microsteps : float
-        Full steps per microstep (ie 1/8).
-    input_distance_per_revolution : float
-        Conversion factor of units per full step.
-    input_rpm : type
-        Description of parameter `input_rpm`.
-
-    Attributes
-    ----------
-    enable : bool
-
+    input_dist_per_rev : float
+        Conversion factor of distance units per full step.
+    input_steps_per_rev : int
+        Number of steps per revolution.
+    input_rpm : com_type
+        Initial revolutions per minute following initialization.
 
     """
 
@@ -113,57 +110,53 @@ class TicStepper(StepperBase):
             'limit_switch_rev': [0x60, 8],
         }
 
-    def __init__(self, type: str,
+    def __init__(self, com_type: str,
                  port_params,
                  address=None,
                  input_dist_per_rev=1,
                  input_steps_per_rev=200,
                  input_rpm=1):
 
-        if self._communicationProtocol(type) == self._com_protocol['SERIAL']:
+        if self._comProtocol(com_type) == self._com_protocol['SERIAL']:
             port_name = port_params[0]  # ex: '/dev/ttyacm0'
             baud_rate = port_params[1]  # ex: 9600
             port = serial.Serial(port_name, baud_rate,
                                  timeout=0.1, write_timeout=0.1)
             self.com = TicSerial(port, address)
 
-        elif self._communicationProtocol(type) == self._com_protocol['I2C']:
+        elif self._comProtocol(com_type) == self._com_protocol['I2C']:
             self.com = TicI2C(port_params, address)
         self.com.send(self._command_dict['rst'])
         super(TicStepper, self).__init__(input_dist_per_rev,
                                          input_steps_per_rev,
                                          input_rpm)
 
-    def home(self, dir: str):
+    def home(self, direc: str):
         """
         Home the motor in the specified direction.
 
         Parameters
         ----------
-        dir : str
+        direc : str
         The direction to home. Supported values: `fwd` or `rev`.
-
-        Warnings
-        --------
-        UserWarning
-        If limit switch is not detected in direction specified.
 
         Notes
         -----
         Limit switches must be preconfigured via USB before use.
+
         """
-        limit_available = self._checkLimitSwitch(dir)
+        limit_available = self._checkLimitSwitch(direc)
         if limit_available:
             command_to_send = self._command_dict['goHome']
-            if dir == 'fwd':
+            if direc == 'fwd':
                 data = 1
             else:
                 data = 0
             self.com.send(command_to_send, data)
         else:
-            warnings.warn('Limit switch not available in direction: ' + dir)
+            warnings.warn('Limit switch not available in direction: ' + direc)
 
-    def isHomed(self):
+    def isHomed(self) -> bool:
         """Check the 'position uncertain' bit on the Tic driver.
 
         The flag 'position uncertain' will be 1 if the motor is de-energized
@@ -200,12 +193,8 @@ class TicStepper(StepperBase):
         Parameters
         ----------
         state : bool
-        The desired motor state.
+            The desired motor state.
 
-        Warnings
-        --------
-        UserWarning
-        If state is not a boolean value.
         """
         if state == self._enable_states['DISABLED']:
             self._enable = self._enable_states['DISABLED']
@@ -254,11 +243,13 @@ class TicStepper(StepperBase):
         return location
 
     def _moveToTarget(self):
+        """Communicate with Tic board to set target position in steps."""
         command_to_send = self._command_dict['sTargetPosition']
         data = self._target_steps
         self.com.send(command_to_send, data)
 
-    def _checkLimitSwitch(self, direction: str):
+    def _checkLimitSwitch(self, direction: str) -> bool:
+        """Confirm that limit switch exists in homing direction `direction`."""
         command_to_send = self._command_dict['gSetting']
         if direction == 'fwd':
             data = self._setting_dict['limit_switch_fwd']
@@ -266,14 +257,14 @@ class TicStepper(StepperBase):
             data = self._setting_dict['limit_switch_rev']
         else:
             warnings.warn('Direction should be `fwd` or `rev`')
-            return 0
+            return False
         limit_switch = self.com.send(command_to_send, data)
         if limit_switch == 0:
-            return 0
-        return 1
+            return False
+        return True
 
     def _setAccel(self, val: int):
-        """Communicates with the Tic board to set max acceleration.
+        """Communicate with the Tic board to set max acceleration.
 
         Parameters
         ----------
@@ -286,7 +277,7 @@ class TicStepper(StepperBase):
         self.com.send(command_to_send, data)
 
     def _setDecel(self, val: int):
-        """Communicates with the Tic board to set max Deceleration.
+        """Communicate with the Tic board to set max Deceleration.
 
         Parameters
         ----------
@@ -299,6 +290,7 @@ class TicStepper(StepperBase):
         self.com.send(command_to_send, data)
 
     def _setMicrostep(self, microstep: int):
+        """Communicate with the Tic board to set microsteps."""
         self._microsteps_per_full_step = microstep
         command_to_send = self._command_dict['sStepMode']
         data = (microstep == 0b10) \
@@ -306,18 +298,21 @@ class TicStepper(StepperBase):
             + (microstep == 0b1000)*3
         self.com.send(command_to_send, data)
 
-    def _setSpeed(self, speed):
+    def _setSpeed(self, speed: float):
+        """Communicate with the Tic board to set velocity in steps / 10000s."""
         command_to_send = self._command_dict['sMaxSpeed']
         data = speed * 10000
         self.com.send(command_to_send, data)
 
-    def _communicationProtocol(self, type: str):
-        if type in ('serial', 'ser', 'Serial'):
-            return self._com_protocol['SERIAL']
-        elif type in ('i2c', 'I2C'):
-            return self._com_protocol['I2C']
+    def _comProtocol(self, com_type: str) -> int:
+        """Determine communication protocol from user input."""
+        if com_type in ('serial', 'ser', 'Serial'):
+            protocol = self._com_protocol['SERIAL']
+        elif com_type in ('i2c', 'I2C'):
+            protocol = self._com_protocol['I2C']
         else:
-            raise ValueError('Expected protocol type `serial` or `i2c`.')
+            raise ValueError('Expected protocol com_type `serial` or `i2c`.')
+        return protocol
 
     @staticmethod
     def bytesToInt(b: list) -> int:
@@ -326,7 +321,7 @@ class TicStepper(StepperBase):
         return val
 
 
-class TicSerial(object):
+class TicSerial():
     """
     Serial communication protocol for operating a Tic stepper driver.
 
@@ -349,18 +344,19 @@ class TicSerial(object):
         else:
             header = [0xAA, self.device_number, offset & 0x7F]
         if data is None:
-            return bytes(header)
+            ret = bytes(header)
         else:
-            return bytes(header + list(data))
+            ret = bytes(header + list(data))
+        return ret
 
-    def send(self, operation: list, data: list = None):
+    def send(self, operation: list, data: list = None) -> list:
         """
         Interface for communicating with the Tic stepper driver.
 
         Parameters
         ----------
         operation : list
-            Specifies command offset and write/read operation.
+            Specifies command offset and write/read operation type.
 
         data : list
             Data to pass to the registers at offset specified in operation.
@@ -397,16 +393,18 @@ class TicSerial(object):
 
         if read is False:
             self.port.write(command)
+            ret = []
         else:
             self.port.write(command)
             result = self.port.read(data[1])
             if len(result) != data[1]:
                 raise RuntimeError("Expected to read {} bytes, got {}."
                                    .format(data[1], len(result)))
-            return bytearray(result)
+            ret = bytearray(result)
+        return ret
 
 
-class TicI2C(object):
+class TicI2C():
     """
     I2C communication protocol for operating a Tic stepper driver.
 
@@ -423,14 +421,14 @@ class TicI2C(object):
         self.bus = SMBus(bus)
         self.address = address
 
-    def send(self, operation: list, data=None):
+    def send(self, operation: list, data=None) -> list:
         """
         Interface for communicating with the Tic stepper driver.
 
         Parameters
         ----------
         operation : list
-            Specifies command offset and write/read operation.
+            Specifies command offset and write/read operation type.
 
         data : list
             Data to pass to the registers at offset specified in operation.
@@ -464,6 +462,8 @@ class TicI2C(object):
 
         write = i2c_msg.write(self.address, command)
         self.bus.i2c_rdwr(write)
+        ret = []
         if read is not None:
             self.bus.i2c_rdwr(read)
-            return list(read)
+            ret = list(read)
+        return ret

@@ -18,12 +18,12 @@ class TicI2cUtilities(unittest.TestCase):
 
     def test_fake_quick_send(self):
         output = self.stepper.send([0x99, 'quick'])
-        self.assertEqual(None, output)
+        self.assertEqual([], output)
 
     def test_fake_7bit_send(self):
         payload = 124
         output = self.stepper.send([0xAA, 7], payload)
-        self.assertEqual(None, output)
+        self.assertEqual([], output)
 
     def test_data_larger_than_7_bit(self):
         payload = 1024
@@ -37,7 +37,7 @@ class TicI2cUtilities(unittest.TestCase):
     def test_fake_32bit_send(self):
         payload = 2147483647
         output = self.stepper.send([0xBB, 32], payload)
-        self.assertEqual(None, output)
+        self.assertEqual([], output)
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_fake_read(self):
@@ -169,10 +169,12 @@ class TicStepperI2c(unittest.TestCase):
         self.assertEqual(True, warned)
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
-    def test_steps_per_second(self):
-        self.tic.rpm = .1
+    def test_rpm_call(self):
+        rpm = 0.1
+        self.tic.rpm = rpm
         data_in = self.tic.com.bus.fakeInput()
-        split_input = split32BitI2c(self.tic.rpm * 10000 / 60)
+        steps_per_sec = rpm * self.tic.steps_per_rev / 60
+        split_input = split32BitI2c(steps_per_sec * 10000)
         self.assertEqual([self.cmd['sMaxSpeed'][0]] + split_input[:], data_in[1])
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
@@ -246,11 +248,17 @@ class TicStepperSer(unittest.TestCase):
             warned = True
         self.assertEqual(True, warned)
 
-    def test_steps_per_second(self):
+    def test_rpm_value_retained(self):
+        val = 0.01
+        self.tic.rpm = val
+        self.assertEqual(val, self.tic.rpm)
+
+    def test_rpm_call(self):
         operation = self.cmd['sMaxSpeed']
-        data = 2
-        self.tic.rpm = data
-        split_input = split32BitSer(data * 10000 / 60)
+        rpm = 2
+        self.tic.rpm = rpm
+        steps_per_sec = rpm * self.tic.steps_per_rev / 60
+        split_input = split32BitSer(steps_per_sec * 10000)
         data_in = self.proc(operation[0], split_input)
         self.write.assert_called_with(data_in)
 

@@ -4,9 +4,14 @@ import pymotors
 
 
 def eval_tic(tic):
-    """Short testing script to confirm functionality."""
+    """Short testing script to confirm functionality.
+
+    Note: Ending position will not equal starting position due to converting
+    from full steps to microsteps when not at position 0. Also, to help with
+    visualizing motor movement, tape the end of the rotor.
+
+    """
     print('WARNING! MOTOR ROTOR MUST BE DECOUPLED FROM SYSTEM BEFORE TESTING')
-#    print('Tape on the motor shaft will help visualize motion.')
     sleep(2)
     print('Press `CTL-C` to abort.')
     print('Beginning in:')
