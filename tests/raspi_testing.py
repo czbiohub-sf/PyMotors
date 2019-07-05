@@ -42,7 +42,7 @@ def eval_tic(tic):
 
     print('Updating accel/decel + moving to position 0.')
     sleep(1)
-    tic.accel_decel = [0x70000000, 0x70000000]
+    tic.accel_decel = [0x00700000, 0x00700000]
     tic.moveAbsDist(0)
     wait_for_motor(tic)
 
@@ -68,11 +68,13 @@ def eval_tic(tic):
 
 def wait_for_motor(motor):
     """Wait for motor to finish moving."""
-    sleep(.1)
-    while motor.isMoving():
-        sleep(.2)
-#        print('Current position: {}'.format(motor._position_in_steps()))
-        sleep(.1)
+    moving = 1
+    while moving:
+        sleep(0.2)
+        try:
+            moving = motor.isMoving()
+        except OSError:
+            moving = 1
 
 
 if __name__ == '__main__':

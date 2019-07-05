@@ -118,7 +118,7 @@ class TicStepper(StepperBase):
                  address=None,
                  input_dist_per_rev=1,
                  input_steps_per_rev=200,
-                 input_rpm=10):
+                 input_rpm=1):
 
         if self._communicationProtocol(type) == self._com_protocol['SERIAL']:
             port_name = port_params[0]  # ex: '/dev/ttyacm0'
