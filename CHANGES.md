@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. This module adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.2.0
+
+- Add zeroing command in TicStepper to set current position to 0
+- Overrode isMoving in TicStepper to check current velocity
+
 ## 1.1.0
 - Close serial and I2C ports upon deleting the Tic.com object
 - Stop and disable StepperBase upon deleting
