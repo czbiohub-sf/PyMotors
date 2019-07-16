@@ -231,9 +231,9 @@ class StepperBase():
     def _typeSorter(self, val_type: str) -> int:
         """Convert string to int."""
         ret = self._unit_type['UNKNOWN']
-        if val_type in ('steps', 'Steps'):
+        if val_type in ('steps', 'Steps', 'STEPS'):
             ret = self._unit_type['STEPS']
-        elif val_type in ('dist', 'Dist'):
+        elif val_type in ('dist', 'Dist', 'DIST'):
             ret = self._unit_type['DIST']
         else:
             warnings.warn("Expected `dist` or `steps`.")
