@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file. This module adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.1.0
+- Close serial and I2C ports upon deleting the Tic.com object
+- Stop and disable StepperBase upon deleting
+
 ## 1.0.2
 - Patch StepperBase microsteps method to correctly handle successive calls
 
