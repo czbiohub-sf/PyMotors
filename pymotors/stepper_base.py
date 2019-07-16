@@ -57,7 +57,7 @@ class StepperBase():
     def microsteps(self, step_ratio: float):
         micros_per_full_step = 1 / step_ratio
         if self._checkMicrostep(micros_per_full_step):
-            old_micros = self.microsteps
+            old_micros = 1 / self.microsteps
             new_to_old = micros_per_full_step / old_micros
             self.rpm = self.rpm * new_to_old  # reset RPM for new micros
             self._setMicrostep(micros_per_full_step)

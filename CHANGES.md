@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file. This module adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.0.2
+- Patch StepperBase microsteps method to correctly handle successive calls
+
 ## 1.0.1
 - Minor corrections to StepperBase and TicStepper documentation.
 

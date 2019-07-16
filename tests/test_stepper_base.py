@@ -89,6 +89,26 @@ class StepperBaseUtilities(unittest.TestCase):
         self.assertEqual(0.5, self.stepper._convStepsToDist(200))
         self.assertEqual(400, self.stepper._convDistToSteps(1))
 
+    def test_multiple_microsteps_calls(self):
+        warnings.filterwarnings('ignore',
+                                "Overload _setMicrostep for functionality.")
+        self.assertEqual(1, self.stepper._convStepsToDist(200))
+        self.assertEqual(200, self.stepper._convDistToSteps(1))
+        self.stepper.microsteps = 1/2
+        self.stepper.microsteps = 1
+        self.assertEqual(1, self.stepper._convStepsToDist(200))
+        self.assertEqual(200, self.stepper._convDistToSteps(1))
+
+    def test_identical_microsteps_calls(self):
+        warnings.filterwarnings('ignore',
+                                "Overload _setMicrostep for functionality.")
+        self.assertEqual(1, self.stepper._convStepsToDist(200))
+        self.assertEqual(200, self.stepper._convDistToSteps(1))
+        self.stepper.microsteps = 1/2
+        self.stepper.microsteps = 1/2
+        self.assertEqual(0.5, self.stepper._convStepsToDist(200))
+        self.assertEqual(400, self.stepper._convDistToSteps(1))
+
     def test_position_in_steps_dist(self):
         self.stepper._fake_position_in_steps = 20
         self.assertEqual(20, self.stepper.position('steps'))
