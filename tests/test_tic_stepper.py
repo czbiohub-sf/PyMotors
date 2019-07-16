@@ -315,6 +315,24 @@ class TicStepperSer(unittest.TestCase):
         data_in = self.proc(operation[0], split_input)
         self.write.assert_called_with(data_in)
 
+    def test_zero_curr_position(self):
+        operation = self.cmd['haltAndSetPosition']
+        data = split32BitSer(0)
+        self.tic._target_steps = 100
+        self.tic.zeroCurrPosition()
+        data_in = self.proc(operation[0], data)
+        self.assertEqual(0, self.tic._target_steps)
+        self.write.assert_called_with(data_in)
+
+    def test_is_moving(self):
+        operation = self.cmd['gVariable']
+        variable = self.var['curr_velocity']
+        data_in = self.proc(operation[0], variable)
+        self.read.return_value = [0, 0, 0, 0]
+        self.tic.isMoving()
+        self.write.assert_called_with(data_in)
+        self.read.assert_called_with(variable[1])
+
 
 def split32BitI2c(data_in):
     data_in = int(data_in)
