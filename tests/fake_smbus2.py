@@ -4,6 +4,9 @@ class SMBus():
         self.bus_number = bus_number
         self.fake_register_output = 0
 
+    def close(self):
+        pass
+
     def i2c_rdwr(self, operation):
         self.fake_register_input = operation
         if operation == [14, 1]:

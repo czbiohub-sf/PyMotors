@@ -64,12 +64,8 @@ class TicSerialUtilities(unittest.TestCase):
     def setUp(self, MockSerial):
         port_name = '/dev/ttyacm0'
         baud_rate = 9600
-        port = pymotors.tic_stepper.serial.Serial(port_name,
-                                                  baud_rate,
-                                                  timeout=0.1,
-                                                  write_timeout=0.1)
         device_number = 14
-        self.stepper = pymotors.tic_stepper.TicSerial(port, device_number)
+        self.stepper = pymotors.tic_stepper.TicSerial(port_name, baud_rate, device_number)
 
     def test_make_serial_input_without_device_number_and_data(self):
         offset = 0x5A
@@ -224,6 +220,11 @@ class TicStepperSer(unittest.TestCase):
         self.var = self.tic._variable_dict
         self.proc = self.tic.com._makeSerialInput
         warnings.filterwarnings('error')
+
+    def tearDown(self):
+        def fake_isMoving():
+            return False
+        self.tic.isMoving = fake_isMoving
 
     def test_set_microstep(self):
         operation = self.cmd['sStepMode']

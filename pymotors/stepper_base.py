@@ -48,6 +48,12 @@ class StepperBase():
         self.rpm = rpm
         self.enable = self._enable_states['DISABLED']
 
+    def __del__(self):
+        if self.isMoving():
+            self.stop()
+        if self.enable:
+            self.enable = self._enable_states['DISABLED']
+
     @property
     def microsteps(self) -> float:
         """Fraction of a stepper motor full steps per pulse."""

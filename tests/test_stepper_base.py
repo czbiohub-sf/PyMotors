@@ -33,6 +33,10 @@ class StepperBaseUtilities(unittest.TestCase):
         self.stepper = StepperBaseModified()
         warnings.filterwarnings('error')
 
+    def tearDown(self):
+        warnings.filterwarnings('ignore')
+        del self.stepper
+
     def test_dist_per_rev(self):
         self.assertEqual(1, self.stepper.dist_per_rev)
         self.stepper.dist_per_rev = 10
