@@ -51,6 +51,21 @@ def eval_tic(tic):
     tic.moveAbsDist(0)
     wait_for_motor(tic)
 
+    print('Change microsteps to 1/4 and move to position -400')
+    sleep(1)
+    tic.microsteps = 1/4
+    tic.moveAbsSteps(-400)
+    wait_for_motor(tic)
+
+    print('Moving to position 400, reseting zero, and moving to pos 200')
+    sleep(1)
+    tic.moveAbsSteps(400)
+    wait_for_motor(tic)
+    tic.zeroCurrPosition()
+    tic.moveAbsSteps(200)
+    wait_for_motor(tic)
+
+
     print('Moving 20 revolutions clockwise at max recommended speed.')
     sleep(1)
     tic.dist_per_min = 200
