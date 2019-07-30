@@ -130,7 +130,7 @@ class StepperBase():
             self._target_steps = target_steps
             self._moveToTarget()
         else:
-            warnings.warn("Motor is not enable and cannot move.")
+            warnings.warn("Motor is not enabled and cannot move.")
 
     def moveRelSteps(self, rel_target_steps: int):
         """Move target steps away from current position."""

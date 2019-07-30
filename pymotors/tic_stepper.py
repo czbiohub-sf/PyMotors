@@ -142,6 +142,21 @@ class TicStepper(StepperBase):
                                          input_steps_per_rev,
                                          input_rpm)
 
+    def checkLimitSwitch(self, direction: str) -> bool:
+        """Confirm that limit switch exists in homing direction `direction`."""
+        command_to_send = self._command_dict['gSetting']
+        if direction == 'fwd':
+            data = self._setting_dict['limit_switch_fwd']
+        elif direction == 'rev':
+            data = self._setting_dict['limit_switch_rev']
+        else:
+            warnings.warn('Direction should be `fwd` or `rev`')
+            return False
+        limit_switch = self.com.send(command_to_send, data)
+        if limit_switch == 0:
+            return False
+        return True
+
     def home(self, direc: str):
         """
         Home the motor in the specified direction.
@@ -156,7 +171,7 @@ class TicStepper(StepperBase):
         Limit switches must be preconfigured via USB before use.
 
         """
-        limit_available = self._checkLimitSwitch(direc)
+        limit_available = self.checkLimitSwitch(direc)
         if limit_available:
             command_to_send = self._command_dict['goHome']
             if direc == 'fwd':
@@ -190,15 +205,18 @@ class TicStepper(StepperBase):
         data = self._variable_dict['curr_velocity']
         b = self.com.send(command_to_send, data)
         velocity = self.bytesToInt(b)
-        moving = velocity != 0
-        return moving
+        return velocity != 0
 
-    def zeroCurrPosition(self):
+    def setCurrentPositionAs(self, positionSteps: int):
         """Zero the current position."""
+        if type(positionSteps) != int:
+            warnings.warn('"positionSteps" must be an integer')
+            return
+
         command_to_send = self._command_dict['haltAndSetPosition']
-        data = 0
+        data = positionSteps
         self.com.send(command_to_send, data)
-        self._target_steps = 0
+        self._target_steps = positionSteps
 
     @property
     def enable(self):
@@ -274,21 +292,6 @@ class TicStepper(StepperBase):
         command_to_send = self._command_dict['sTargetPosition']
         data = self._target_steps
         self.com.send(command_to_send, data)
-
-    def _checkLimitSwitch(self, direction: str) -> bool:
-        """Confirm that limit switch exists in homing direction `direction`."""
-        command_to_send = self._command_dict['gSetting']
-        if direction == 'fwd':
-            data = self._setting_dict['limit_switch_fwd']
-        elif direction == 'rev':
-            data = self._setting_dict['limit_switch_rev']
-        else:
-            warnings.warn('Direction should be `fwd` or `rev`')
-            return False
-        limit_switch = self.com.send(command_to_send, data)
-        if limit_switch == 0:
-            return False
-        return True
 
     def _setAccel(self, val: int):
         """Communicate with the Tic board to set max acceleration.
