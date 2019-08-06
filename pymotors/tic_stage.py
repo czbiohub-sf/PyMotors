@@ -130,16 +130,23 @@ class TicStage():
         
         return True
 
-    def enable(self):
-        self._ticStepper.enable = True
-        self._ticStepper.stop()
+    def enable(self) -> bool:
+        try:
+            self._ticStepper.enable = True
+            self._ticStepper.stop()
+        except Exception as e:
+            print('Could not enable the TicStepper object!')
+            print(e)
+            return False
 
-    def getAndParseMotorStatus(self):
+        return True
+
+    def getAndParseMotorStatus(self)-> dict:
         # Gets all the status reports from the motor and translates them into
         # english for printing/display
         
         # Poll the motor for statuses
-        miscResp, errResp, opResp = self.getMotorStatus()
+        miscResp, errResp, opResp = self._getMotorStatus()
         
         # Parse the responses
         miscMsg = list()
@@ -165,8 +172,11 @@ class TicStage():
 
     def getIndexedPositions(self):
         return self._indexedPositions
+
+    def getMotionRange(self):
+        return self._allowedMotionRange
         
-    def getMotorStatus(self):
+    def _getMotorStatus(self):
         # Poll the tic flag for position certainty
         try:
             miscResp = self._ticStepper.com.send(self._ticStepper._command_dict['gVariable'], self._ticStepper._variable_dict['misc_flags1'])
@@ -178,23 +188,9 @@ class TicStage():
             return False
         
         return miscResp, errResp, opResp
-        
-    # def homeForward(self):
-    #     if self._fwdSwPresent:
-    #         self.setRotationSpeed(_DEF_HOME_SPD_STEPS_PER_SEC)
-    #         self._ticStepper.home('fwd')
-    #     else:
-    #         print('Forward limit switch not present. Homing (fwd) cannot be performed');
-
-    # def homeReverse(self):
-    #     if self._revSwPresent:
-    #         self.setRotationSpeed(_DEF_HOME_SPD_STEPS_PER_SEC)
-    #         self._ticStepper.home('rev')
-    #     else:
-    #         print('Reverse limit switch not present. Homing (rev) cannot be performed');
 
     def isLimitActive(self, limit):
-        miscResp, _, _ = self.getMotorStatus()
+        miscResp, _, _ = self._getMotorStatus()
         if limit == 'fwd':
             return bool(miscResp[0] & 2**_TIC_FWD_LIMIT_BIT)
         if limit == 'rev':
@@ -324,6 +320,17 @@ class TicStage():
             for value in motorStatus[key]:
                 print('---------'+ value)
 
+    def setCurrentPositionAsIndex(self, index):
+        if index in self._indexedPositions.keys():
+            print('Warning - overwriting existing index')
+
+        # Get current position
+        pos = self.getCurrentPositionSteps()
+
+        # Call existing class method
+        self.setIndexedPositions({index: pos})
+
+
     def setIndexedPositions(self, positionMap: "dict() mapping keys to values (positions in steps)"):
         if type(positionMap) != dict:
             print('Please provide a dict() - returning.')
@@ -341,7 +348,7 @@ class TicStage():
         else:
             # There is no known motion range
             self._indexedPositions.update(positionMap)         
-        
+
     def setRotationSpeed(self, stepsPerSecond):
         try:
             self._ticStepper.rpm = 60*stepsPerSecond/self._ticStepper.steps_per_rev
@@ -361,7 +368,7 @@ class TicStage():
         print('In motion...')
         sleep(0.010)
         while self._ticStepper.isMoving():
-            print('In motion....' + str(self._ticStepper.isMoving()))
+            #print('In motion....' + str(self._ticStepper.isMoving()))
             sleep(.005)
 
     def __del__(self):
