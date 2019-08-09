@@ -199,13 +199,13 @@ class TicStepper(StepperBase):
         position_known = (b[0] & 2) == 0
         return position_known
 
-    def isMoving(self) -> bool:
-        """Check the 'current velocity' value of the Tic driver."""
-        command_to_send = self._command_dict['gVariable']
-        data = self._variable_dict['curr_velocity']
-        b = self.com.send(command_to_send, data)
-        velocity = self.bytesToInt(b)
-        return velocity != 0
+#    def isMoving(self) -> bool:
+#        """Check the 'current velocity' value of the Tic driver."""
+#        command_to_send = self._command_dict['gVariable']
+#        data = self._variable_dict['curr_velocity']
+#        b = self.com.send(command_to_send, data)
+#        velocity = self.bytesToInt(b)
+#        return velocity != 0
 
     def setCurrentPositionAs(self, positionSteps: int):
         """Zero the current position."""
