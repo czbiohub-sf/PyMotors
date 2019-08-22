@@ -35,6 +35,5 @@ TicStepper :: pyserial (Serial communication)<br>
 3. Execute python script or application
 
 
-
 ## How to Contribute
 If you would like to contribute to PyMotors, please review the guidelines described in [CONTRIBUTING.md](https://github.com/czbiohub/PyMotors/blob/master/CONTRIBUTING.md).

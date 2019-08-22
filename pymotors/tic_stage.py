@@ -31,10 +31,12 @@ _DEF_MOVE_TIMEOUT_S = 1000
 _MAX_RESP_BITS = 8
 _TIC_FWD_LIMIT_BIT = 2
 _TIC_REV_LIMIT_BIT = 3
-_DEF_HOME_SPD_STEPS_PER_SEC = 30    # Default homing speed
-_DEF_MAX_SPD_STEPS_PER_SEC = 50     # If microstepping, refers to microsteps/second
+_DEF_HOME_SPD_STEPS_PER_SEC = 50    # Default homing speed
+_DEF_MAX_SPD_STEPS_PER_SEC = 500     # If microstepping, refers to microsteps/second
 _WFM_PAUSE = 0.01
 _MOTION_TOL_STEPS = 3
+_SLEEP_BEFORE_HOMING_S = 3
+_IDENTITY = 'TicStage'
 
 # Uses bit flags
 _errorStatusDict = {
@@ -427,8 +429,8 @@ class TicStage():
             print('Argument "limit" must be either "fwd" or "rev".')
             return False
         
-        print('Homing in the ' + limit + ' direction in 3 seconds...')
-        sleep(3)
+        print('Homing in the ' + limit + ' direction in ' + str(_SLEEP_BEFORE_HOMING_S) + ' seconds...')
+        sleep(_SLEEP_BEFORE_HOMING_S)
         
         # Set default homing speed, accounting for microstepping factor
         self.setRotationSpeed(_DEF_HOME_SPD_STEPS_PER_SEC*self._microStepFactor)
@@ -570,6 +572,10 @@ class TicStage():
             
         self._stepsPerSecond = stepsPerSecond
         return True
+    
+    def type(self):
+        # Overloading type method to return a simplified string
+        return _IDENTITY
 
     def _updateAllowedMotionRange(self) -> bool:
         """
