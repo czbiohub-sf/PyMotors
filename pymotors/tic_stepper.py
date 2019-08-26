@@ -370,6 +370,7 @@ class TicSerial():
         self.device_number = device_number
 
     def __del__(self):
+        self.enable = False
         self.port.close()
 
     def _makeSerialInput(self, offset, data=None):
