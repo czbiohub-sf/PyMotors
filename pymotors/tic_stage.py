@@ -600,7 +600,7 @@ class TicStage():
         Inputs: None
         Outputs: None
         """
-        print('In motion...')
+        print('TicStage: In motion...')
         sleep(_WFM_PAUSE)
         while abs(self.getCurrentPositionSteps() - self._ticStepper._target_steps) > motionTolSteps:
             #print('In motion....' + str(self._ticStepper.isMoving()))
