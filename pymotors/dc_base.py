@@ -1,5 +1,9 @@
-import threading
-import warnings
+import logging
+from logging import NullHandler
+
+LOG = logging.getLogger(__name__).addHandler(NullHandler())
+
+# pylint: disable = invalid-name
 
 
 class DcBase():
@@ -8,54 +12,52 @@ class DcBase():
                              'rev': [reverse_pins, forward_pins],
                              'stop': [[], forward_pins + reverse_pins],
                              }
-        self._timer = threading.Timer(0, self.stop)
-        self.stop()
+        self.is_moving = False
+        self.direction = 'stop'
+        LOG.debug('DC object created.')
 
     def __del__(self):
-        self._clearExpiration()
+        self.stop()
+        LOG.debug('DC object deleted.')
 
-    def moveFwd(self, seconds=0):
-        self.direction = 'fwd'
-        self.is_moving = True
-        self._move(seconds)
+    def moveFwd(self):
+        """Drive motor forward and update attributes."""
+        set_dir = 'fwd'
+        pass_fail = self._move(set_dir)
+        if pass_fail:
+            self.is_moving = True
+            self.direction = set_dir
+            LOG.debug('DC motor moving forward.')
 
-    def moveRev(self, seconds=0):
-        self.direction = 'rev'
-        self.is_moving = True
-        self._move(seconds)
+    def moveRev(self):
+        """Drive motor in reverse and update attributes."""
+        set_dir = 'rev'
+        pass_fail = self._move(set_dir)
+        if pass_fail:
+            self.is_moving = True
+            self.direction = set_dir
+            LOG.debug('DC motor moving reverse.')
 
     def stop(self):
-        self.direction = 'stop'
-        self.is_moving = False
-        self._clearExpiration()
-        self._move()
+        """Stop the motor and update attributes."""
+        set_dir = 'stop'
+        pass_fail = self._move(set_dir)
+        if pass_fail:
+            self.is_moving = False
+            self.direction = set_dir
+            LOG.debug('DC motor stopped.')
 
-    def _move(self, seconds: float = 0):
+    def _move(self, set_dir: str):
+        pass_fail = False
+        if set_dir not in self._toggle_dict:
+            LOG.warning('Direction `%s` not recgonized.' % set_dir)
+            return pass_fail
 
-        if (
-            self.direction != 'fwd'
-            and self.direction != 'rev'
-            and self.direction != 'stop'
-           ):
-            warnings.warn('Direction {} not recgonized'.format(dir))
-            return
+        pass_fail = self._togglePins(self._toggle_dict[set_dir])
+        return pass_fail
 
-        pass_fail = self._togglePins(self._toggle_dict[self.direction])
-        if pass_fail == 1:
-            self._setExpiration(seconds)
-
-    def _togglePins(self, dir: str):
+    def _togglePins(self, set_dir: str):
         raise NotImplementedError('_togglePins has not been overridden.')
-
-    def _setExpiration(self, seconds: int):
-        if seconds > 0:
-            self._timer = threading.Timer(seconds, self.stop)
-            self._timer.start()
-
-    def _clearExpiration(self):
-        if self._timer.is_alive():
-            self._timer.cancel()
-            self._timer.join()
 
 
 class LimitedDc(DcBase):
