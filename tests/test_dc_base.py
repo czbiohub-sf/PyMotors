@@ -70,8 +70,8 @@ class LimitedDc_Utilities(unittest.TestCase):
         self.dc._pollLimits = lambda : 0.1
         self.dc.setDirLimit('fwd', 1)
         self.dc.moveFwd()
-        self.dc._checkLimits()
+        self.dc.checkLimits()
         self.assertEqual('fwd', self.dc.direction)
         self.dc.setDirLimit('fwd', 0)
-        self.dc._checkLimits()
+        self.dc.checkLimits()
         self.assertEqual('stop', self.dc.direction)

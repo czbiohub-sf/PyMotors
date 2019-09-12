@@ -79,7 +79,7 @@ class LimitedDc(DcBase):
         else:
             LOG.warning('Direction `%s` not recognized.' % set_dir)
 
-    def _checkLimits(self):
+    def checkLimits(self):
         """Stop motor if threshold exceeded."""
         if self.direction in self._limits:
             adc_limit = self._limits[self.direction]
