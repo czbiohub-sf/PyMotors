@@ -1,7 +1,8 @@
 import logging
 from logging import NullHandler
 
-LOG = logging.getLogger(__name__).addHandler(NullHandler())
+LOG = logging.getLogger(__name__)
+LOG.addHandler(NullHandler())
 
 # pylint: disable = invalid-name
 
