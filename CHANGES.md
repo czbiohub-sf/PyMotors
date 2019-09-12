@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. This module adheres to [Semantic Versioning](https://semver.org/).
 
+## Unversioned Changes
+- Remove timers from DcBase and LimitedDc
+- Add command to set limits in LimitedDc
+- Make LimitedDc checkLimits method public now that timers no longer check state in background
+- Update tests for DcBase and LimitedDc
+
 ## 1.2.0
 
 - Add zeroing command in TicStepper to set current position to 0
