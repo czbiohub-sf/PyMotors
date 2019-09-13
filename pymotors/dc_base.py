@@ -8,6 +8,7 @@ LOG.addHandler(NullHandler())
 
 
 class DcBase():
+    """Genearlized DC motor base class."""
     def __init__(self, forward_pins=[], reverse_pins=[]):
         self._toggle_dict = {'fwd': [forward_pins, reverse_pins],
                              'rev': [reverse_pins, forward_pins],
@@ -51,10 +52,10 @@ class DcBase():
     def _move(self, set_dir: str):
         pass_fail = False
         if set_dir not in self._toggle_dict:
-            LOG.warning('Direction `%s` not recgonized.' % set_dir)
+            LOG.warning('Direction `%s` not recgonized.', set_dir)
             return pass_fail
 
-        pass_fail = self._togglePins(self._toggle_dict[set_dir])
+        pass_fail = self._togglePins(set_dir)
         return pass_fail
 
     def _togglePins(self, set_dir: str):
@@ -62,9 +63,7 @@ class DcBase():
 
 
 class LimitedDc(DcBase):
-    """
-    DC motor with limit setting and limit polling functionality.
-    """
+    """DC motor with limit setting and limit polling functionality."""
 
     def __init__(self, fwd_pins=[], rev_pins=[]):
         self._limits = {}
@@ -74,10 +73,10 @@ class LimitedDc(DcBase):
         """Set a threshold value for a specified direction."""
         if set_dir == 'fwd' or 'rev':
             self._limits[set_dir] = limit
-            LOG.debug('Motor limit set. Direction: `%s` | Threshold: %f' %
-                      (set_dir, limit))
+            LOG.debug('Motor limit set. Direction: `%s` | Threshold: %f',
+                      set_dir, limit)
         else:
-            LOG.warning('Direction `%s` not recognized.' % set_dir)
+            LOG.warning('Direction `%s` not recognized.', set_dir)
 
     def checkLimits(self):
         """Stop motor if threshold exceeded."""
@@ -86,8 +85,8 @@ class LimitedDc(DcBase):
             obs = self._pollLimits()
             if obs >= adc_limit:
                 self.stop()
-                LOG.debug('Motor limit reached. Threshold: %f | Observed: %f' %
-                          (adc_limit, obs))
+                LOG.debug('Motor limit reached. Threshold: %f | Observed: %f',
+                          adc_limit, obs)
 
     def _pollLimits(self):
         raise NotImplementedError('_pollLimits has not been overridden.')
