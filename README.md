@@ -23,17 +23,19 @@ TicStepper :: pyserial (Serial communication)<br>
 5. Test the module for completeness (__python setup.py test__)
 6. Install module (__pip install .__)
 
+NOTE: Developers may want to install the module with __pip install -e .__ so that changes they make to the module are immediately reflected when subsequently imported.
+
 ### Updating Module from Repository
 1. Pull changes from remote repository
 2. Activate virtual environment with previous install
-3. Test the module for completeness (__python setup.py test__)
-3. Update module (__pip install . --upgrade__)
+3. Navigate to the module directory
+4. Test the module for completeness (__python setup.py test__)
+5. Update module (__pip install . --upgrade__)
 
 ### Using Module
 1. Edit files to include `import pymotors` or a variant such as `from pymotors import TicStepper`
 2. Activate virtual environment with module installed
 3. Execute python script or application
-
 
 
 ## How to Contribute
