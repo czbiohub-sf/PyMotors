@@ -1,4 +1,4 @@
-# Contributing to PyMotors
+# Contributing
 
 For ease of use, modules should follow the formatting guidelines listed below. Doing so will ensure thorough documentation, seamless importation, effective version control, and minimal code-breaking revisions. Pull requests that do not annotate changes in CHANGES.md and increment the version in setup.py will not be merged.
 

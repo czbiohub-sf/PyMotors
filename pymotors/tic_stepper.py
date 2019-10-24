@@ -131,11 +131,9 @@ class TicStepper(StepperBase):
                  input_rpm=1):
 
         if self._comProtocol(com_type) == self._com_protocol['SERIAL']:
-            port_name = port_params[0]  # ex: '/dev/ttyacm0'
+            port_name = port_params[0]  # ex: '/dev/ttyUSB0'
             baud_rate = port_params[1]  # ex: 9600
-            port = serial.Serial(port_name, baud_rate,
-                                 timeout=0.1, write_timeout=0.1)
-            self.com = TicSerial(port, address)
+            self.com = TicSerial(port_name, baud_rate, address)
 
         elif self._comProtocol(com_type) == self._com_protocol['I2C']:
             self.com = TicI2C(port_params, address)
@@ -185,6 +183,22 @@ class TicStepper(StepperBase):
         b = self.com.send(command_to_send, data)
         position_known = (b[0] & 2) == 0
         return position_known
+
+    def isMoving(self) -> bool:
+        """Check the 'current velocity' value of the Tic driver."""
+        command_to_send = self._command_dict['gVariable']
+        data = self._variable_dict['curr_velocity']
+        b = self.com.send(command_to_send, data)
+        velocity = self.bytesToInt(b)
+        moving = velocity != 0
+        return moving
+
+    def zeroCurrPosition(self):
+        """Zero the current position."""
+        command_to_send = self._command_dict['haltAndSetPosition']
+        data = 0
+        self.com.send(command_to_send, data)
+        self._target_steps = 0
 
     @property
     def enable(self):
@@ -347,9 +361,13 @@ class TicSerial():
         Int specifying device number on bus.
     """
 
-    def __init__(self, port, device_number=None):
-        self.port = port
+    def __init__(self, port_name, baud_rate, device_number=None):
+        self.port = serial.Serial(port_name, baud_rate,
+                                  timeout=0.1, write_timeout=0.1)
         self.device_number = device_number
+
+    def __del__(self):
+        self.port.close()
 
     def _makeSerialInput(self, offset, data=None):
         if self.device_number is None:
@@ -433,6 +451,9 @@ class TicI2C():
     def __init__(self, bus, address):
         self.bus = SMBus(bus)
         self.address = address
+
+    def __del__(self):
+        self.bus.close()
 
     def send(self, operation: list, data=None) -> list:
         """

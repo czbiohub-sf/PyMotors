@@ -64,12 +64,8 @@ class TicSerialUtilities(unittest.TestCase):
     def setUp(self, MockSerial):
         port_name = '/dev/ttyacm0'
         baud_rate = 9600
-        port = pymotors.tic_stepper.serial.Serial(port_name,
-                                                  baud_rate,
-                                                  timeout=0.1,
-                                                  write_timeout=0.1)
         device_number = 14
-        self.stepper = pymotors.tic_stepper.TicSerial(port, device_number)
+        self.stepper = pymotors.tic_stepper.TicSerial(port_name, baud_rate, device_number)
 
     def test_make_serial_input_without_device_number_and_data(self):
         offset = 0x5A
@@ -225,6 +221,11 @@ class TicStepperSer(unittest.TestCase):
         self.proc = self.tic.com._makeSerialInput
         warnings.filterwarnings('error')
 
+    def tearDown(self):
+        def fake_isMoving():
+            return False
+        self.tic.isMoving = fake_isMoving
+
     def test_set_microstep(self):
         operation = self.cmd['sStepMode']
         self.tic.microsteps = 1/8
@@ -313,6 +314,24 @@ class TicStepperSer(unittest.TestCase):
         split_input = split32BitSer(dc_val)
         data_in = self.proc(operation[0], split_input)
         self.write.assert_called_with(data_in)
+
+    def test_set_curr_position(self):
+        operation = self.cmd['haltAndSetPosition']
+        data = split32BitSer(0)
+        self.tic._target_steps = 100
+        self.tic.zeroCurrPosition() 
+        data_in = self.proc(operation[0], data)
+        self.assertEqual(0, self.tic._target_steps)
+        self.write.assert_called_with(data_in)
+
+    def test_is_moving(self):
+        operation = self.cmd['gVariable']
+        variable = self.var['curr_velocity']
+        data_in = self.proc(operation[0], variable)
+        self.read.return_value = [0, 0, 0, 0]
+        self.tic.isMoving()
+        self.write.assert_called_with(data_in)
+        self.read.assert_called_with(variable[1])
 
 
 def split32BitI2c(data_in):

@@ -33,6 +33,10 @@ class StepperBaseUtilities(unittest.TestCase):
         self.stepper = StepperBaseModified()
         warnings.filterwarnings('error')
 
+    def tearDown(self):
+        warnings.filterwarnings('ignore')
+        del self.stepper
+
     def test_dist_per_rev(self):
         self.assertEqual(1, self.stepper.dist_per_rev)
         self.stepper.dist_per_rev = 10
@@ -85,6 +89,26 @@ class StepperBaseUtilities(unittest.TestCase):
                                 "Overload _setMicrostep for functionality.")
         self.assertEqual(1, self.stepper._convStepsToDist(200))
         self.assertEqual(200, self.stepper._convDistToSteps(1))
+        self.stepper.microsteps = 1/2
+        self.assertEqual(0.5, self.stepper._convStepsToDist(200))
+        self.assertEqual(400, self.stepper._convDistToSteps(1))
+
+    def test_multiple_microsteps_calls(self):
+        warnings.filterwarnings('ignore',
+                                "Overload _setMicrostep for functionality.")
+        self.assertEqual(1, self.stepper._convStepsToDist(200))
+        self.assertEqual(200, self.stepper._convDistToSteps(1))
+        self.stepper.microsteps = 1/2
+        self.stepper.microsteps = 1
+        self.assertEqual(1, self.stepper._convStepsToDist(200))
+        self.assertEqual(200, self.stepper._convDistToSteps(1))
+
+    def test_identical_microsteps_calls(self):
+        warnings.filterwarnings('ignore',
+                                "Overload _setMicrostep for functionality.")
+        self.assertEqual(1, self.stepper._convStepsToDist(200))
+        self.assertEqual(200, self.stepper._convDistToSteps(1))
+        self.stepper.microsteps = 1/2
         self.stepper.microsteps = 1/2
         self.assertEqual(0.5, self.stepper._convStepsToDist(200))
         self.assertEqual(400, self.stepper._convDistToSteps(1))
