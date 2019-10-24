@@ -315,11 +315,11 @@ class TicStepperSer(unittest.TestCase):
         data_in = self.proc(operation[0], split_input)
         self.write.assert_called_with(data_in)
 
-    def test_zero_curr_position(self):
+    def test_set_curr_position(self):
         operation = self.cmd['haltAndSetPosition']
         data = split32BitSer(0)
         self.tic._target_steps = 100
-        self.tic.zeroCurrPosition()
+        self.tic.zeroCurrPosition() 
         data_in = self.proc(operation[0], data)
         self.assertEqual(0, self.tic._target_steps)
         self.write.assert_called_with(data_in)

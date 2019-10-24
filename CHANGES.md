@@ -2,11 +2,13 @@
 
 All notable changes to this project will be documented in this file. This module adheres to [Semantic Versioning](https://semver.org/).
 
-## Unversioned Changes
+## 1.3.0
 - Remove timers from DcBase and LimitedDc
 - Add command to set limits in LimitedDc
 - Make LimitedDc checkLimits method public now that timers no longer check state in background
 - Update tests for DcBase and LimitedDc
+- Remove Raspberry Pi dependencies in DC class
+- Add logging to DC classes
 
 ## 1.2.0
 
