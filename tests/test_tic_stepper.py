@@ -193,6 +193,21 @@ class TicStepperI2c(unittest.TestCase):
         self.assertEqual([self.cmd['sTargetPosition'][0]] + split_input, data_in[1])
 
     @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
+    def test_velocity_control(self):
+        self.tic.enable = True
+        self.tic.velocityControl(2000000)
+        data_in = self.tic.com.bus.fakeInput()
+        split_input = split32BitI2c(2000000)
+        self.assertEqual([self.cmd['sTargetVelocity'][0]] + split_input, data_in[1])
+
+    @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
+    def test_set_current_limit(self):
+        self.tic.setCurrentLimit(13)
+        data_in = self.tic.com.bus.fakeInput()
+        self.assertEqual([self.cmd['sCurrentLimit'][0]] + [13], data_in[1])
+
+
+    @patch('pymotors.tic_stepper.i2c_msg', new=fake_smbus2.i2c_msg)
     def test_is_homed(self):
         not_home = 3
         self.tic.com.bus.fake_register_output = not_home
@@ -319,7 +334,7 @@ class TicStepperSer(unittest.TestCase):
         operation = self.cmd['haltAndSetPosition']
         data = split32BitSer(0)
         self.tic._target_steps = 100
-        self.tic.zeroCurrPosition() 
+        self.tic.zeroCurrPosition()
         data_in = self.proc(operation[0], data)
         self.assertEqual(0, self.tic._target_steps)
         self.write.assert_called_with(data_in)

@@ -193,6 +193,18 @@ class TicStepper(StepperBase):
         moving = velocity != 0
         return moving
 
+    def setCurrentLimit(self, milliamp_code: int):
+        """Review https://www.pololu.com/docs/0J71/6#setting-current-limit ."""
+        command_to_send = self._command_dict['sCurrentLimit']
+        data = milliamp_code
+        self.com.send(command_to_send, data)
+
+    def velocityControl(self, steps_per_10000s):
+        """Set the motor to move at the specified velocity."""
+        command_to_send = self._command_dict['sTargetVelocity']
+        data = steps_per_10000s
+        self.com.send(command_to_send, data)
+
     def zeroCurrPosition(self):
         """Zero the current position."""
         command_to_send = self._command_dict['haltAndSetPosition']
