@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file. This module adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.3.1
+- Add Tic velocity control method
+- Add Tic set current limit method
+
 ## 1.3.0
 - Remove timers from DcBase and LimitedDc
 - Add command to set limits in LimitedDc
