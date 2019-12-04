@@ -212,6 +212,11 @@ class TicStepper(StepperBase):
         self.com.send(command_to_send, data)
         self._target_steps = 0
 
+    def halt(self):
+        """Stop the motor abruptly at the current postition."""
+        command_to_send = self._command_dict['haltAndHoldPosition']
+        self.com.send(command_to_send)
+
     @property
     def enable(self):
         """
@@ -355,9 +360,12 @@ class TicStepper(StepperBase):
 
     @staticmethod
     def bytesToInt(b: list) -> int:
-        """Convert 32-bit output to int."""
-        val = b[0] + (b[1] << 8) + (b[2] << 16) + (b[3] << 24)
-        return val
+        """Convert 16- or 32-bit output to int."""
+        val = b[0] + (b[1] << 8)
+        try:
+            val = val + (b[2] << 16) + (b[3] << 24)
+        finally:
+            return val
 
 
 class TicSerial():
