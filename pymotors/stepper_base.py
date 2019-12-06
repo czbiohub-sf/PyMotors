@@ -38,11 +38,11 @@ class StepperBase():
     _enable_states = {'DISABLED': False, 'ENABLED': True}
     _unit_type = {'UNKNOWN': -1, 'STEPS': 0, 'DIST': 1}
 
-    def __init__(self, dist_per_rev=1, steps_per_rev=200, rpm=1):
+    def __init__(self, dist_per_rev=1, steps_per_rev=200, rpm=1, microsteps_per_full_step = 1):
         self._enable = None
         self._steps_per_second = None
         self._target_steps = 0
-        self._microsteps_per_full_step = 1
+        self._microsteps_per_full_step = microsteps_per_full_step
         self.steps_per_rev = steps_per_rev
         self.dist_per_rev = dist_per_rev
         self.rpm = rpm
@@ -130,7 +130,7 @@ class StepperBase():
             self._target_steps = target_steps
             self._moveToTarget()
         else:
-            warnings.warn("Motor is not enable and cannot move.")
+            warnings.warn("Motor is not enabled and cannot move.")
 
     def moveRelSteps(self, rel_target_steps: int):
         """Move target steps away from current position."""

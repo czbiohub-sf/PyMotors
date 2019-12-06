@@ -77,6 +77,9 @@ class TicStepper(StepperBase):
                                          input_steps_per_rev,
                                          input_rpm)
 
+    def __del__(self):
+        self.enable = False
+
     @property
     def accel_decel(self) -> list:
         """Acceleration and deceleration values."""
@@ -106,6 +109,21 @@ class TicStepper(StepperBase):
             val = val + (b[2] << 16) + (b[3] << 24)
         finally:
             return val
+
+    def checkLimitSwitch(self, direction: str) -> bool:
+        """Confirm that limit switch exists in homing direction `direction`."""
+        command_to_send = self._command_dict['gSetting']
+        if direction == 'fwd':
+            data = self._setting_dict['limit_switch_fwd']
+        elif direction == 'rev':
+            data = self._setting_dict['limit_switch_rev']
+        else:
+            warnings.warn('Direction should be `fwd` or `rev`')
+            return False
+        limit_switch = self.com.send(command_to_send, data)
+        if limit_switch == 0:
+            return False
+        return True
 
     @property
     def enable(self):
@@ -160,7 +178,7 @@ class TicStepper(StepperBase):
         Limit switches must be preconfigured via USB before use.
 
         """
-        limit_available = self._checkLimitSwitch(direc)
+        limit_available = self.checkLimitSwitch(direc)
         if limit_available:
             command_to_send = self._command_dict['goHome']
             if direc == 'fwd':
@@ -194,8 +212,7 @@ class TicStepper(StepperBase):
         data = self._variable_dict['curr_velocity']
         b = self.com.send(command_to_send, data)
         velocity = self.bytesToInt(b)
-        moving = velocity != 0
-        return moving
+        return velocity != 0
 
     def setCurrentLimit(self, milliamp_code: int):
         """Review https://www.pololu.com/docs/0J71/6#setting-current-limit ."""
@@ -203,33 +220,22 @@ class TicStepper(StepperBase):
         data = milliamp_code
         self.com.send(command_to_send, data)
 
+    def setCurrentPositionAs(self, positionSteps: int):
+        """Zero the current position."""
+        if type(positionSteps) != int:
+            warnings.warn('"positionSteps" must be an integer')
+            return
+
+        command_to_send = self._command_dict['haltAndSetPosition']
+        data = positionSteps
+        self.com.send(command_to_send, data)
+        self._target_steps = positionSteps
+
     def velocityControl(self, steps_per_10000s):
         """Set the motor to move at the specified velocity."""
         command_to_send = self._command_dict['sTargetVelocity']
         data = steps_per_10000s
         self.com.send(command_to_send, data)
-
-    def zeroCurrPosition(self):
-        """Zero the current position."""
-        command_to_send = self._command_dict['haltAndSetPosition']
-        data = 0
-        self.com.send(command_to_send, data)
-        self._target_steps = 0
-
-    def _checkLimitSwitch(self, direction: str) -> bool:
-        """Confirm that limit switch exists in homing direction `direction`."""
-        command_to_send = self._command_dict['gSetting']
-        if direction == 'fwd':
-            data = self._setting_dict['limit_switch_fwd']
-        elif direction == 'rev':
-            data = self._setting_dict['limit_switch_rev']
-        else:
-            warnings.warn('Direction should be `fwd` or `rev`')
-            return False
-        limit_switch = self.com.send(command_to_send, data)
-        if limit_switch == 0:
-            return False
-        return True
 
     def _comProtocol(self, com_type: str) -> int:
         """Determine communication protocol from user input."""
