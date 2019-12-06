@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. This module adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.3.2
+- Add halt method to immediately stop motor
+- Change bytesToInt method to support 2-byte conversions
+
+## 1.3.1
+- Add Tic velocity control method
+- Add Tic set current limit method
+
+## 1.3.0
+- Remove timers from DcBase and LimitedDc
+- Add command to set limits in LimitedDc
+- Make LimitedDc checkLimits method public now that timers no longer check state in background
+- Update tests for DcBase and LimitedDc
+- Remove Raspberry Pi dependencies in DC class
+- Add logging to DC classes
+
 ## 1.2.0
 
 - Add zeroing command in TicStepper to set current position to 0
