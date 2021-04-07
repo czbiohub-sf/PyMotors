@@ -22,10 +22,11 @@ Update 2019/8/7: as of today, only tic T500 boards have been tested with this cl
 """
 
 from time import sleep, time
+import numpy as np 
 
 # ---------------------------------------CONSTANTS-----------------------------------------------
 _OBJECT_TYPE = "TicStage"
-_SOFTLIMIT_BUFFER_STEPS = 20
+_SOFTLIMIT_BUFFER_STEPS = 10
 _DEF_MAX_HOMING_STEPS = 1E8
 _DEF_MOVE_TIMEOUT_S = 1000
 _MAX_RESP_BITS = 8
@@ -35,7 +36,7 @@ _DEF_HOME_SPD_STEPS_PER_SEC = 50    # Default homing speed
 _DEF_MAX_SPD_STEPS_PER_SEC = 500     # If microstepping, refers to microsteps/second
 _WFM_PAUSE = 0.01
 _MOTION_TOL_STEPS = 3
-_SLEEP_BEFORE_HOMING_S = 3
+_SLEEP_BEFORE_HOMING_S = 0.5
 _IDENTITY = 'TicStage'
 
 # Uses bit flags
@@ -165,15 +166,16 @@ class TicStage():
                 self.moveToLimit('fwd', maxSteps, timeout_s)
             except Exception as e:
                 self._ticStepper.enable = False
-                print("Unable to find the reverse home switch")
+                print("Unable to find the forward home switch")
                 print(e)
                 return False
 
             fwdPos = self._ticStepper.position('steps')
         else:
+            # There is no forward limit
             fwdPos = float('inf')
 
-        # Next, home in the reverse direction. Once the limit switch is encountered,
+        # Home in the reverse direction. Once the limit switch is encountered,
         # the TicStepper position and the TicStage position will be set to zero.
         if self._revSwPresent:
             try:
@@ -188,16 +190,23 @@ class TicStage():
                 print('Stage did not find the reverse limit switch')
                 return False
 
+            # Set the ticStepper position as 0
+            self._ticStepper.setCurrentPositionAs(0)
             revPos = self._ticStepper.position('steps')
         else:
+            # There is no reverse limit
             revPos = -float('inf')
 
         # Home the TicStepper, as this will set its current position to 0
-        self._ticStepper.home('rev')
-        self._revLimSwPositionTic = 0
-        self._fwdLimSwPositionTic = fwdPos - revPos
+        # self._ticStepper.home('rev')
+        # self._revLimSwPositionTic = 0
+        # self._fwdLimSwPositionTic = fwdPos - revPos
+        self._revLimSwPositionTic = revPos
+        self._fwdLimSwPositionTic = fwdPos
         self._isMotionRangeKnown = True
         self._updateAllowedMotionRange()
+        self.moveAbsSteps(_SOFTLIMIT_BUFFER_STEPS)
+
         print('Motion range discovered.')
 
         return True
@@ -328,6 +337,7 @@ class TicStage():
         """
         if self._isMotionRangeKnown:
             if self.isTargetValid(positionSteps):
+                print(f"TicStage moveAbsSteps: moving to {positionSteps}")
                 self._ticStepper.moveAbsSteps(positionSteps)
                 if waitForMotion:
                     self.waitForMotion()
@@ -455,6 +465,9 @@ class TicStage():
             limitActive = self.isLimitActive(limit)
             #print('Limit active: ' + str(limitActive))
             sleep(_WFM_PAUSE)
+
+        # Home the low-level ticStepper as well
+        self._ticStepper.home(limit)
 
         return True
 
@@ -594,7 +607,7 @@ class TicStage():
             self._allowedMotionRange[1] = 0
             return False
 
-    def waitForMotion(self, motionTolSteps = _MOTION_TOL_STEPS):
+    def waitForMotion(self, motionTolSteps = _MOTION_TOL_STEPS, timeout_s = 20):
         """
         Purpose: Blocks execution until the stage reaches its target
         Inputs: None
