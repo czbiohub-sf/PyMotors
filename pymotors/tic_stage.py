@@ -34,7 +34,7 @@ _TIC_REV_LIMIT_BIT = 3
 _DEF_HOME_SPD_STEPS_PER_SEC = 50    # Default homing speed
 _DEF_MAX_SPD_STEPS_PER_SEC = 500     # If microstepping, refers to microsteps/second
 _WFM_PAUSE = 0.01
-_MOTION_TOL_STEPS = 3
+_MOTION_TOL_STEPS = 1
 _SLEEP_BEFORE_HOMING_S = 0.5
 _IDENTITY = 'TicStage'
 
@@ -160,16 +160,26 @@ class TicStage():
             return False
 
 
+        # Move the motor in the forward direction until the limit switch is encountered
+        if self._fwdSwPresent:
+            try:
+                self.moveToLimit('fwd', maxSteps, timeout_s)
+                print("TicStage: found forward limit")
+
+            except Exception as e:
+                self._ticStepper.enable = False
+                print("Unable to find the forward home switch")
+                print(e)
+                return False
+
+            fwdPos = self._ticStepper.position('steps')
+
         # Home in the reverse direction. Once the limit switch is encountered,
         # the TicStepper position and the TicStage position will be set to zero.
-        # We do not perform the TicStepper home in the forward direction because
-        # it will overide and set the new zero position there.
         if self._revSwPresent:
             try:
                 revLimAchieved = self.moveToLimit('rev', maxSteps, timeout_s)
                 print("TicStage: found reverse limit")
-                self._ticStepper.home('rev')
-                self._ticStepper.setCurrentPositionAs(0)
             except Exception as e:
                 self._ticStepper.enable = False
                 print("Could not complete home reverse routine. Disabling TicStepper")
@@ -180,33 +190,24 @@ class TicStage():
                 print('Stage did not find the reverse limit switch')
                 return False
 
-            revPos = self._ticStepper.position('steps')
-        else:
-            revPos = -float('inf')
+            else:
+                revPos = self._ticStepper.position('steps')
+                # Ensure the TicStepper is also homed
+                self._ticStepper.home('rev')
+                # Wait until the TicStepper knows that it is home
+                while not self._ticStepper.isHomed():
+                    pass
 
-        # Move the motor in the forward direction until the limit switch is encountered
-        if self._fwdSwPresent:
-            try:
-                self.moveToLimit('fwd', maxSteps, timeout_s)
-                print("TicStage: found reverse limit")
-
-            except Exception as e:
-                self._ticStepper.enable = False
-                print("Unable to find the reverse home switch")
-                print(e)
-                return False
-
-            fwdPos = self._ticStepper.position('steps')
-        else:
-            fwdPos = float('inf')
+                # Assert that we call this position '0'
+                self._ticStepper.setCurrentPositionAs(0)
 
 
-        self._revLimSwPositionTic = revPos
-        self._fwdLimSwPositionTic = fwdPos
+        self._revLimSwPositionTic = 0
+        self._fwdLimSwPositionTic = fwdPos - revPos
         self._isMotionRangeKnown = True
         self._updateAllowedMotionRange()
         print('Motion range discovered.')
-        print(f"Reverse position: {revPos} \nForward position: {fwdPos}")
+        print(f"Reverse position: {self._revLimSwPositionTic} \nForward position: {self._fwdLimSwPositionTic}")
 
         return True
 
@@ -610,9 +611,10 @@ class TicStage():
         """
         print('TicStage: In motion...')
         sleep(_WFM_PAUSE)
-        while abs(self.getCurrentPositionSteps() - self._ticStepper._target_steps) > motionTolSteps:
+        while self._ticStepper.isMoving():
+        #abs(self.getCurrentPositionSteps() - self._ticStepper._target_steps) > motionTolSteps:
             #print('In motion....' + str(self._ticStepper.isMoving()))
-            sleep(_WFM_PAUSE)
+            pass
 
     def __del__(self):
         """
@@ -620,6 +622,7 @@ class TicStage():
         Inputs: None
         Outputs: None
         """
+        self.disable()
         del(self._ticStepper)
         return
 # --------------------------------------------------------------------------------------------------
