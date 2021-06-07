@@ -22,14 +22,12 @@ Update 2019/8/7: as of today, only tic T500 boards have been tested with this cl
 """
 
 from time import sleep, time
-from tic_stepper import TicStepper
+from .tic_stepper import TicStepper
 
 # ---------------------------------------CONSTANTS-----------------------------------------------
-_OBJECT_TYPE = "TicStage"
 _SOFTLIMIT_BUFFER_STEPS = 20
 _DEF_MAX_HOMING_STEPS = 1E8
 _DEF_MOVE_TIMEOUT_S = 1000
-_MAX_RESP_BITS = 8
 _TIC_FWD_LIMIT_BIT = 2
 _TIC_REV_LIMIT_BIT = 3
 _DEF_HOME_SPD_STEPS_PER_SEC = 50    # Default homing speed
@@ -39,34 +37,6 @@ _MOTION_TOL_STEPS = 3
 _SLEEP_BEFORE_HOMING_S = 3
 _IDENTITY = 'TicStage'
 
-# Uses bit flags
-_error_status_dict = {
-        0: "Intentionally de-energized",
-        1: "Motor driver error",
-        2: "Low VIN",
-        3: "Kill switch active",
-        4: "Required input invalid",
-        5: "Serial error",
-        6: "Command timeout",
-        7: "Safe start violation",
-        8: "ERR line high"}
-
-# Uses bit flags
-_misc_bit_dict = {
-        0: "Energized",
-        1: "Position uncertain",
-        2: "Forward limit active",
-        3: "Reverse limit active",
-        4: "Homing active"}
-
-# Uses a map from integer to status string
-_op_state_dict = {
-        0: "Reset",
-        2: "De-engergized",
-        4: "Soft error",
-        6: "Waiting for ERR line",
-        8: "Starting up",
-        10: "Normal"}
 # -----------------------------------------------------------------------------------------------
 
 # ---------------------------------------METHODS-------------------------------------------------
@@ -95,7 +65,6 @@ class TicStage(TicStepper):
         Set the maximum allowed speed of the motor.
     micro_step_factor : float
         Ratio of full steps to microsteps.
-
     """
 
     def __init__(self, com_type: str,
@@ -239,37 +208,6 @@ class TicStage(TicStepper):
 
         return True
 
-    def getAndParsemotor_status(self)-> dict:
-        """Gets all the status reports from the motor and translates them into english for printing/display
-
-        Returns
-        -------
-        motor_status : dict
-            Three item dictionary with OperationStatus, ErrorStatus, and PositionStatus.
-        """
-
-        # Poll the motor for statuses
-        misc_resp, err_resp, op_resp = self._getmotor_status()
-
-        # Parse the responses
-        misc_msg = list()
-        op_msg = list()
-        err_msg = list()
-        for i in range(_MAX_RESP_BITS):
-            if misc_resp[0] & 2**i:
-                misc_msg.append(_misc_bit_dict[i])
-            # op_resp format is not a bit lookup - they are just even integers
-            if op_resp[0] == 2*i:
-                op_msg.append(_op_state_dict[2*i])
-            if err_resp[0] & 2**i:
-                err_msg.append(_error_status_dict[i])
-
-        motor_status = {'OperationStatus': op_msg, \
-                       'ErrorStatus': err_msg, \
-                       'PositionStatus': misc_msg}
-
-        return motor_status
-
     def getCurrentposition_steps(self):
         return self.position('steps')
 
@@ -285,27 +223,6 @@ class TicStage(TicStepper):
         """
 
         return self._allowed_motion_range
-
-    def _getmotor_status(self) -> tuple:
-        """Poll the tic flag for position certainty
-
-        Returns
-        -------
-        A 3-Tuple with the various tic stage status responses.
-        If an error occurs, returns False, False, False
-        See getAndParsemotor_status() for parsed output.
-        """
-
-        try:
-            misc_resp = self.com.send(self._command_dict['gVariable'], self._variable_dict['misc_flags1'])
-            err_resp = self.com.send(self._command_dict['gVariable'], self._variable_dict['error_status'])
-            op_resp = self.com.send(self._command_dict['gVariable'], self._variable_dict['operation_state'])
-        except Exception as e:
-            print("Error reading motor status")
-            print(e)
-            return False, False, False
-
-        return misc_resp, err_resp, op_resp
 
     def isLimitActive(self, limit) -> bool:
         """Check whether the specified limit switch is active or not
@@ -523,28 +440,6 @@ class TicStage(TicStepper):
             sleep(_WFM_PAUSE)
 
         return True
-
-    def print(self):
-        """Print status of this object to the command line"""
-
-        motor_status = self.getAndParsemotor_status()
-        print('\n------------------')
-        print(_OBJECT_TYPE)
-        print('------------------\n')
-
-        print('Forward limit switch present: ' + str(self._fwd_sw_present))
-        print('Reverse limit switch present: ' + str(self._rev_sw_present))
-        print('Motion range known: ' + str(self._is_motion_range_known))
-        print(f'Motion range: [{self._allowed_motion_range[0]},{self._allowed_motion_range[1]}]')
-        print('Current position (steps): ' + str(self.getCurrentposition_steps()) + '\n')
-
-        print('TicStepper attributes:')
-        print('------------------\n')
-
-        for key in motor_status.keys():
-            print(key)
-            for value in motor_status[key]:
-                print('---------'+ value)
 
     def setCurrentPositionAsIndex(self, index)->bool:
         """This method will get the current stage position, then try to

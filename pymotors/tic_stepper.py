@@ -24,6 +24,39 @@ except ImportError:
 
 # pylint: disable=invalid-name
 
+# ---------------------------------------CONSTANTS-----------------------------------------------
+_MAX_RESP_BITS = 8
+_OBJECT_TYPE = "TicStage"
+
+# Uses bit flags
+_error_status_dict = {
+        0: "Intentionally de-energized",
+        1: "Motor driver error",
+        2: "Low VIN",
+        3: "Kill switch active",
+        4: "Required input invalid",
+        5: "Serial error",
+        6: "Command timeout",
+        7: "Safe start violation",
+        8: "ERR line high"}
+
+# Uses bit flags
+_misc_bit_dict = {
+        0: "Energized",
+        1: "Position uncertain",
+        2: "Forward limit active",
+        3: "Reverse limit active",
+        4: "Homing active"}
+
+# Uses a map from integer to status string
+_op_state_dict = {
+        0: "Reset",
+        2: "De-engergized",
+        4: "Soft error",
+        6: "Waiting for ERR line",
+        8: "Starting up",
+        10: "Normal"}
+
 
 class TicStepper(StepperBase):
     """Base class for Pololu Tic stepper driver.
@@ -307,6 +340,80 @@ class TicStepper(StepperBase):
         command_to_send = self._command_dict['sMaxSpeed']
         data = speed * 10000
         self.com.send(command_to_send, data)
+
+    def _getmotor_status(self) -> tuple:
+        """Poll the tic flag for position certainty
+
+        Returns
+        -------
+        A 3-Tuple with the various tic stage status responses.
+        If an error occurs, returns False, False, False
+        See getAndParsemotor_status() for parsed output.
+        """
+
+        try:
+            misc_resp = self.com.send(self._command_dict['gVariable'], self._variable_dict['misc_flags1'])
+            err_resp = self.com.send(self._command_dict['gVariable'], self._variable_dict['error_status'])
+            op_resp = self.com.send(self._command_dict['gVariable'], self._variable_dict['operation_state'])
+        except Exception as e:
+            print("Error reading motor status")
+            print(e)
+            return False, False, False
+
+        return misc_resp, err_resp, op_resp
+
+    def getAndParsemotor_status(self)-> dict:
+        """Gets all the status reports from the motor and translates them into english for printing/display
+
+        Returns
+        -------
+        motor_status : dict
+            Three item dictionary with OperationStatus, ErrorStatus, and PositionStatus.
+        """
+
+        # Poll the motor for statuses
+        misc_resp, err_resp, op_resp = self._getmotor_status()
+
+        # Parse the responses
+        misc_msg = list()
+        op_msg = list()
+        err_msg = list()
+        for i in range(_MAX_RESP_BITS):
+            if misc_resp[0] & 2**i:
+                misc_msg.append(_misc_bit_dict[i])
+            # op_resp format is not a bit lookup - they are just even integers
+            if op_resp[0] == 2*i:
+                op_msg.append(_op_state_dict[2*i])
+            if err_resp[0] & 2**i:
+                err_msg.append(_error_status_dict[i])
+
+        motor_status = {'OperationStatus': op_msg, \
+                       'ErrorStatus': err_msg, \
+                       'PositionStatus': misc_msg}
+
+        return motor_status
+
+    def print(self):
+        """Print status of this object to the command line"""
+
+        motor_status = self.getAndParsemotor_status()
+        print('\n------------------')
+        print(_OBJECT_TYPE)
+        print('------------------\n')
+
+        print('Forward limit switch present: ' + str(self._fwd_sw_present))
+        print('Reverse limit switch present: ' + str(self._rev_sw_present))
+        print('Motion range known: ' + str(self._is_motion_range_known))
+        print(f'Motion range: [{self._allowed_motion_range[0]},{self._allowed_motion_range[1]}]')
+        print('Current position (steps): ' + str(self.getCurrentposition_steps()) + '\n')
+
+        print('TicStepper attributes:')
+        print('------------------\n')
+
+        for key in motor_status.keys():
+            print(key)
+            for value in motor_status[key]:
+                print('---------'+ value)
 
     _com_protocol = {'SERIAL': 0, 'I2C': 1}
 
