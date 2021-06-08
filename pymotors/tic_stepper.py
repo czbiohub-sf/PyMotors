@@ -272,7 +272,7 @@ class TicStepper(StepperBase):
         command_to_send = self._command_dict['sTargetVelocity']
         data = steps_per_10000s
         self.com.send(command_to_send, data)
-
+    
     def _comProtocol(self, com_type: str) -> int:
         """Determine communication protocol from user input."""
         if com_type in ('serial', 'ser', 'Serial'):
@@ -474,10 +474,13 @@ class TicStepper(StepperBase):
             'last_driver_error': [0x55, 1],
         }  # documentation: https://www.pololu.com/docs/0J71/7
 
+    #TODO check whether the setting_dict should be in bits or bytes
     _setting_dict = \
         {
             'limit_switch_fwd': [0x5F, 8],
             'limit_switch_rev': [0x60, 8],
+            'homing_speed_fwd': [0x61, 32], #### NEED TO CONFIRM (I think this should be in bytes, not bits)
+            'homing_speed_rev': [0x65, 32],
         }
 
 
