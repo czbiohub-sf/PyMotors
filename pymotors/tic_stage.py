@@ -33,6 +33,7 @@ _TIC_REV_LIMIT_BIT = 3
 _DEF_HOME_SPD_STEPS_PER_SEC = 50    # Default homing speed
 _DEF_MAX_SPD_STEPS_PER_SEC = 500     # If microstepping, refers to microsteps/second
 _WFM_PAUSE = 0.01
+_STEADY_POSITION_TIMEOUT = 0.05
 _MOTION_TOL_STEPS = 3
 _SLEEP_BEFORE_HOMING_S = 3
 _IDENTITY = 'TicStage'
@@ -207,9 +208,6 @@ class TicStage(TicStepper):
             return False
 
         return True
-
-    def getCurrentposition_steps(self):
-        return self.position('steps')
 
     def getIndexedPositions(self):
         return self._index_positions
@@ -459,7 +457,7 @@ class TicStage(TicStepper):
             print('Warning - overwriting existing index')
 
         # Get current position
-        pos = self.getCurrentposition_steps()
+        pos = self.getCurrentPosition_steps()
 
         # Call existing class method
         flag = self.setIndexedPositions({index: pos})
@@ -542,6 +540,17 @@ class TicStage(TicStepper):
         self._steps_per_second = steps_per_second
         return True
 
+    def print(self):
+        """Extending parent print to add TicStage specific diagnostics"""
+
+        super().print()
+        print('Forward limit switch present: ' + str(self._fwd_sw_present))
+        print('Reverse limit switch present: ' + str(self._rev_sw_present))
+        print('Motion range known: ' + str(self._is_motion_range_known))
+        print(f'Motion range: [{self._allowed_motion_range[0]},{self._allowed_motion_range[1]}]')
+        print('Current position (steps): ' + str(self.getCurrentPosition_steps()) + '\n')
+
+        
     def type(self):
         # Overloading type method to return a simplified string
         return _IDENTITY
@@ -570,15 +579,19 @@ class TicStage(TicStepper):
 
         print('TicStage: In motion...')
         sleep(_WFM_PAUSE)
-        while abs(self.getCurrentposition_steps() - self._target_steps) > motion_tol_steps:
-            #print('In motion....' + str(self._ticStepper.isMoving()))
+        while abs(self.getCurrentPosition_steps() - self._target_steps) > motion_tol_steps:
             sleep(_WFM_PAUSE)
 
+        timer_start = time()
+
+        while ((time() - timer_start < _STEADY_POSITION_TIMEOUT) and 
+                (self.getCurrentPosition_steps != self._target_steps)):
+            sleep(_WFM_PAUSE)
+        
     def __del__(self):
         """Ensures the stage is disabled upon deletion of the object"""
         
         self.disable()
-        del(self._ticStepper)
         return
 # --------------------------------------------------------------------------------------------------
 

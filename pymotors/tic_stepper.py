@@ -264,6 +264,9 @@ class TicStepper(StepperBase):
         self.com.send(command_to_send, data)
         self._target_steps = positionSteps
 
+    def getCurrentPosition_steps(self):
+        return self.position('steps')
+
     def velocityControl(self, steps_per_10000s):
         """Set the motor to move at the specified velocity."""
         command_to_send = self._command_dict['sTargetVelocity']
@@ -401,12 +404,6 @@ class TicStepper(StepperBase):
         print(_OBJECT_TYPE)
         print('------------------\n')
 
-        print('Forward limit switch present: ' + str(self._fwd_sw_present))
-        print('Reverse limit switch present: ' + str(self._rev_sw_present))
-        print('Motion range known: ' + str(self._is_motion_range_known))
-        print(f'Motion range: [{self._allowed_motion_range[0]},{self._allowed_motion_range[1]}]')
-        print('Current position (steps): ' + str(self.getCurrentposition_steps()) + '\n')
-
         print('TicStepper attributes:')
         print('------------------\n')
 
@@ -414,6 +411,7 @@ class TicStepper(StepperBase):
             print(key)
             for value in motor_status[key]:
                 print('---------'+ value)
+        print('------------------\n')
 
     _com_protocol = {'SERIAL': 0, 'I2C': 1}
 
