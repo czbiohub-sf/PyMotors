@@ -191,23 +191,6 @@ class TicStage(TicStepper):
 
         return True
 
-    def enable(self) -> bool:
-        """Set new B parameter value and recalculate f(x)
-        
-        Returns
-        -------
-        Flag (bool) indicating success/failure of enabling the motor.
-        """
-
-        try:
-            self.enable = True
-            self.stop()
-        except Exception as e:
-            print('Could not enable the TicStepper object!')
-            print(e)
-            return False
-
-        return True
 
     def getIndexedPositions(self):
         return self._index_positions
