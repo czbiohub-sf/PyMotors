@@ -264,7 +264,7 @@ class TicStepper(StepperBase):
         self.com.send(command_to_send, data)
         self._target_steps = positionSteps
 
-    def getCurrentPosition_steps(self):
+    def getCurrentPositionSteps(self):
         return self.position('steps')
 
     def velocityControl(self, steps_per_10000s):
