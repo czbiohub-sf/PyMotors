@@ -76,7 +76,7 @@ class TicStage(TicStepper):
                  input_rpm=1,
                  max_speed = _DEF_MAX_SPD_STEPS_PER_SEC, 
                  micro_step_factor=1):
-        TicStepper.__init__(com_type, port_params, address, input_dist_per_rev, input_steps_per_rev, input_rpm)
+        TicStepper.__init__(self, com_type, port_params, address, input_dist_per_rev, input_steps_per_rev, input_rpm)
     
 
         try:
