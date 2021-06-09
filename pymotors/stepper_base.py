@@ -115,8 +115,8 @@ class StepperBase():
         Notes
         -----
         Can be overridden to apply implementation specific hardware enabling.
-
         """
+
         if state == self._enable_states['DISABLED']:
             self._enable = self._enable_states['DISABLED']
         elif state == self._enable_states['ENABLED']:
@@ -124,28 +124,32 @@ class StepperBase():
         else:
             warnings.warn('Expected `False` (disabled) or `True` (enable)')
 
-    def moveAbsSteps(self, target_steps: int):
+    def _moveAbsSteps(self, target_steps: int):
         """Move to target step position."""
+    
         if self._enable:
             self._target_steps = target_steps
             self._moveToTarget()
         else:
             warnings.warn("Motor is not enabled and cannot move.")
 
-    def moveRelSteps(self, rel_target_steps: int):
+    def _moveRelSteps(self, rel_target_steps: int):
         """Move target steps away from current position."""
+    
         target_steps = round(self._convReltoAbs(rel_target_steps))
-        self.moveAbsSteps(target_steps)
+        self._moveAbsSteps(target_steps)
 
     def moveAbsDist(self, target_dist: float):
         """Move to target distance units away from 0."""
+
         target_steps = round(self._convDistToSteps(target_dist))
-        self.moveAbsSteps(target_steps)
+        self._moveAbsSteps(target_steps)
 
     def moveRelDist(self, rel_target_dist: float):
         """Move target distance units away from current position."""
+        
         rel_target_steps = self._convDistToSteps(rel_target_dist)
-        self.moveRelSteps(rel_target_steps)
+        self._moveRelSteps(rel_target_steps)
 
     def position(self, unit_type: str) -> float:
         """Return current position in steps or dist.
@@ -178,7 +182,7 @@ class StepperBase():
         Stops movement by setting current position to target position. Also,
         disable the motor to ignore queued movement commands.
         """
-        self.moveRelSteps(0)
+        self._moveRelSteps(0)
 
     def _moveToTarget(self):
         """

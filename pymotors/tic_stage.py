@@ -76,8 +76,7 @@ class TicStage(TicStepper):
                  input_rpm=1,
                  max_speed = _DEF_MAX_SPD_STEPS_PER_SEC, 
                  micro_step_factor=1):
-        TicStepper.__init__(self, com_type, port_params, address, input_dist_per_rev, input_steps_per_rev, input_rpm)
-    
+        super().__init__(com_type, port_params, address, input_dist_per_rev, input_steps_per_rev, input_rpm)
 
         try:
             self._fwd_sw_present = self.checkLimitSwitch('fwd')
@@ -275,7 +274,7 @@ class TicStage(TicStepper):
 
         if self._is_motion_range_known:
             if self.isTargetValid(position_steps):
-                super().moveAbsSteps(position_steps)
+                super()._moveAbsSteps(position_steps)
                 if wait_for_motion:
                     self.wait_for_motion()
                 return True
@@ -283,7 +282,7 @@ class TicStage(TicStepper):
                 print('Proposed motion is out of range - returning without motion.')
                 return False
         elif open_loop_assert:
-            super().moveAbsSteps(position_steps)
+            super()._moveAbsSteps(position_steps)
             if wait_for_motion:
                 self.wait_for_motion()
             return True
@@ -311,10 +310,9 @@ class TicStage(TicStepper):
         -------
             Success/failure flag
         """
-
         if self._is_motion_range_known:
             if self.isTargetValid(steps + self.position('steps')):
-                self.moveRelSteps(steps)
+                super()._moveRelSteps(steps)
                 if wait_for_motion:
                     self.wait_for_motion()
                 return True
@@ -322,7 +320,7 @@ class TicStage(TicStepper):
                 print('Proposed motion is out of range. Please try a smaller move.')
                 return False
         elif open_loop_assert:
-            self.moveRelSteps(steps)
+            super()._moveRelSteps(steps)
             if wait_for_motion:
                     self.wait_for_motion()
             return True
@@ -403,7 +401,7 @@ class TicStage(TicStepper):
         current_position = initial_position
         # Start moving, and poll the TicStepper limit switch during motion
         t1 = time()
-        super().moveRelSteps(target_pos)
+        super()._moveRelSteps(target_pos)
 
         # During the motion:
         #   - Check how many steps have been issued
