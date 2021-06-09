@@ -275,7 +275,7 @@ class TicStage(TicStepper):
 
         if self._is_motion_range_known:
             if self.isTargetValid(position_steps):
-                self.moveAbsSteps(position_steps)
+                super().moveAbsSteps(position_steps)
                 if wait_for_motion:
                     self.wait_for_motion()
                 return True
@@ -283,7 +283,7 @@ class TicStage(TicStepper):
                 print('Proposed motion is out of range - returning without motion.')
                 return False
         elif open_loop_assert:
-            self.moveAbsSteps(position_steps)
+            super().moveAbsSteps(position_steps)
             if wait_for_motion:
                 self.wait_for_motion()
             return True
@@ -403,7 +403,7 @@ class TicStage(TicStepper):
         current_position = initial_position
         # Start moving, and poll the TicStepper limit switch during motion
         t1 = time()
-        self.moveRelSteps(target_pos)
+        self.moveRelSteps(target_pos, wait_for_motion=True, open_loop_assert=True)
 
         # During the motion:
         #   - Check how many steps have been issued
@@ -440,7 +440,7 @@ class TicStage(TicStepper):
             print('Warning - overwriting existing index')
 
         # Get current position
-        pos = self.getCurrentPosition_steps()
+        pos = self.getCurrentPositionSteps()
 
         # Call existing class method
         flag = self.setIndexedPositions({index: pos})
@@ -531,7 +531,7 @@ class TicStage(TicStepper):
         print('Reverse limit switch present: ' + str(self._rev_sw_present))
         print('Motion range known: ' + str(self._is_motion_range_known))
         print(f'Motion range: [{self._allowed_motion_range[0]},{self._allowed_motion_range[1]}]')
-        print('Current position (steps): ' + str(self.getCurrentPosition_steps()) + '\n')
+        print('Current position (steps): ' + str(self.getCurrentPositionSteps()) + '\n')
 
         
     def type(self):
@@ -562,13 +562,13 @@ class TicStage(TicStepper):
 
         print('TicStage: In motion...')
         sleep(_WFM_PAUSE)
-        while abs(self.getCurrentPosition_steps() - self._target_steps) > motion_tol_steps:
+        while abs(self.getCurrentPositionSteps() - self._target_steps) > motion_tol_steps:
             sleep(_WFM_PAUSE)
 
         timer_start = time()
 
         while ((time() - timer_start < _STEADY_POSITION_TIMEOUT) and 
-                (self.getCurrentPosition_steps != self._target_steps)):
+                (self.getCurrentPositionSteps != self._target_steps)):
             sleep(_WFM_PAUSE)
         
     def __del__(self):

@@ -8,7 +8,7 @@ be changed via I2C or serial - only variables can be.
 
 Recommended setups:
 Raspberry Pi with I2C or serial implmentation and bidirectional level shifters.
-PC with serial implementaiton and a USB-to-UART cable (5V TTL).
+PC with serial implementation and a USB-to-UART cable (5V TTL).
 
 """
 import warnings
@@ -441,7 +441,7 @@ class TicStepper(StepperBase):
         }  # documentation: https://www.pololu.com/docs/0J71/8
 
     _variable_dict = \
-        {  # 'variable_key': [offset_address, bits_to_read]
+        {  # 'variable_key': [offset_address, bytes_to_read]
             'operation_state': [0x00, 1],
             'misc_flags1': [0x01, 1],
             'error_status': [0x02, 2],
@@ -474,13 +474,11 @@ class TicStepper(StepperBase):
             'last_driver_error': [0x55, 1],
         }  # documentation: https://www.pololu.com/docs/0J71/7
 
-    #TODO check whether the setting_dict should be in bits or bytes
+
     _setting_dict = \
         {
-            'limit_switch_fwd': [0x5F, 8],
-            'limit_switch_rev': [0x60, 8],
-            'homing_speed_fwd': [0x61, 32], #### NEED TO CONFIRM (I think this should be in bytes, not bits)
-            'homing_speed_rev': [0x65, 32],
+            'limit_switch_fwd': [0x5F, 1],
+            'limit_switch_rev': [0x60, 1],
         }
 
 
