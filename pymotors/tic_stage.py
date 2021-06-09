@@ -403,7 +403,7 @@ class TicStage(TicStepper):
         current_position = initial_position
         # Start moving, and poll the TicStepper limit switch during motion
         t1 = time()
-        self.moveRelSteps(target_pos, wait_for_motion=True, open_loop_assert=True)
+        super().moveRelSteps(target_pos)
 
         # During the motion:
         #   - Check how many steps have been issued
