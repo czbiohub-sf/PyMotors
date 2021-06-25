@@ -21,6 +21,7 @@ Date: 2019/07/16
 Update 2019/8/7: as of today, only tic T500 boards have been tested with this class.
 """
 
+import warnings
 from time import sleep, time
 from .tic_stepper import TicStepper
 
@@ -33,16 +34,20 @@ _TIC_REV_LIMIT_BIT = 3
 _DEF_HOME_SPD_STEPS_PER_SEC = 50    # Default homing speed
 _DEF_MAX_SPD_STEPS_PER_SEC = 500     # If microstepping, refers to microsteps/second
 _WFM_PAUSE = 0.01
-_STEADY_POSITION_TIMEOUT = 0.05
-_MOTION_TOL_STEPS = 3
+_TOLERANCE_EXCEPTION_TIMEOUT = 0.05
+_MAX_ALLOWABLE_TOLERANCE = 5
 _SLEEP_BEFORE_HOMING_S = 3
+_HOMING_WAIT_TIME = 0.2
 _IDENTITY = 'TicStage'
+
+# ---------------------------------------SET ON INSTANTIATION-----------------------------------------------
+_MOTION_TOL_STEPS = 3
 
 # -----------------------------------------------------------------------------------------------
 
 # ---------------------------------------METHODS-------------------------------------------------
 class TicStage(TicStepper):
-    """Extends TicStepper base class to implement an application-specific class (TODO: What sort of application? Need to elaborate).
+    """Extends TicStepper base class to implement functionality specifically for use with a translation stage.
     
     This class, TicStage, allows a user to define custom positions for both forward
     and reverse limit switch positions, soft limits, and other user-defined 
@@ -52,20 +57,31 @@ class TicStage(TicStepper):
     ----------
     com_type : str
         Communication protocol `I2C` or `SERIAL`.
+        
     port_params : list or int
         (Serial) -> [port: str, baud: int] || (I2C) -> port: int.
+
     address : int
         Device address on bus.
+
     input_dist_per_rev : float
         Conversion factor of user defined distance units per revolution.
+
     input_steps_per_rev : int
         Number of steps per revolution.
+
     input_rpm : float
         Initial max speed in revolutions per minute.
+
     max_speed : int
         Set the maximum allowed speed of the motor.
+
     micro_step_factor : float
         Ratio of full steps to microsteps.
+
+    default_step_tol : int
+        Sets the default step tolerance for all motions (can be overriden by passing 
+        a step tolerance parameter whenever calling a motion function)
     """
 
     def __init__(self, com_type: str,
@@ -75,7 +91,8 @@ class TicStage(TicStepper):
                  input_steps_per_rev=200,
                  input_rpm=1,
                  max_speed = _DEF_MAX_SPD_STEPS_PER_SEC, 
-                 micro_step_factor=1):
+                 micro_step_factor=1,
+                 default_step_tol=3):
         super().__init__(com_type, port_params, address, input_dist_per_rev, input_steps_per_rev, input_rpm)
 
         try:
@@ -83,6 +100,7 @@ class TicStage(TicStepper):
             self._rev_sw_present = self.checkLimitSwitch('rev')
             self.microsteps = 1/micro_step_factor
             self._micro_step_factor = micro_step_factor
+            _MOTION_TOL_STEPS = default_step_tol
             self.disable()
         except Exception as e:
             print('Failed to read properties from TicStepper object')
@@ -123,8 +141,8 @@ class TicStage(TicStepper):
             return False
 
         return True
-
-    def discoverMotionRange(self, max_steps = 1E8, timeout_s = 60) -> bool:
+    
+    def discoverMotionRange(self, max_steps = _DEF_MAX_HOMING_STEPS, timeout_s = 60) -> bool:
         """Automates bi-directional homing process
 
         Parameters
@@ -157,7 +175,7 @@ class TicStage(TicStepper):
                 print(e)
                 return False
 
-            fwd_pos = self.position('steps')
+            fwd_pos = self.getCurrentPositionSteps()
         else:
             fwd_pos = float('inf')
 
@@ -176,12 +194,15 @@ class TicStage(TicStepper):
                 print('Stage did not find the reverse limit switch')
                 return False
 
-            rev_pos = self.position('steps')
+            rev_pos = self.getCurrentPositionSteps()
         else:
             rev_pos = -float('inf')
 
-        # Home the TicStepper, as this will set its current position to 0
+        # Home the TicStepper, as this will set its current position to 0.
+        # Homing takes 20 ms (See step 4: https://www.pololu.com/docs/0J71/5.6)
         self.home('rev')
+        sleep(_HOMING_WAIT_TIME)
+
         self._rev_lim_sw_position_tic = 0
         self._fwd_lim_sw_position_tic = fwd_pos - rev_pos
         self._is_motion_range_known = True
@@ -232,10 +253,12 @@ class TicStage(TicStepper):
 
         Parameters
         ----------
-            target_pos : position in steps
+        target_pos : int
+            Position in steps
 
         Returns
         -------
+        : bool
             Success/failure flag
         """
 
@@ -251,8 +274,13 @@ class TicStage(TicStepper):
 
         return (target_pos >= self._allowed_motion_range[0]) and (target_pos <= self._allowed_motion_range[1])
 
-    def moveAbsSteps(self, position_steps, wait_for_motion = True, open_loop_assert = False):
+    def moveAbsSteps(self, position_steps, wait_for_motion = True, open_loop_assert = False, 
+                        step_tolerance = None, timeout = _TOLERANCE_EXCEPTION_TIMEOUT):
         """Move to an absolute position, in steps
+
+        If the stage does not reach its target location within the specified tolerance
+        (i.e it stops X steps before the target), this function will raise an exception
+        which must be handled by the user.
 
         Parameters
         ----------
@@ -266,17 +294,29 @@ class TicStage(TicStepper):
         open_loop_assert : bool
             If true, the motion will be performed whether or not
             there is a motion range defined.
-        
+
+        step_tolerance : int
+            The desired step tolerance for the motion. If none, the default step tolerance 
+            (set during instantiation) will be used. Otherwise the provided step tolerance 
+            will be used.
+
+        timeout : float
+            Specifies the time (in s) before raising an error 
+            if the motor does not arrive to the target location within the specified tolerance. 
+            Defaults to 0.05s.
+
         Returns
         -------
         Success/failure flag
         """
+        
+        tolerance = step_tolerance if step_tolerance is not None else _MOTION_TOL_STEPS
 
         if self._is_motion_range_known:
             if self.isTargetValid(position_steps):
                 super()._moveAbsSteps(position_steps)
                 if wait_for_motion:
-                    self.wait_for_motion()
+                    self.wait_for_motion(motion_tol_steps=tolerance, timeout=timeout)
                 return True
             else:
                 print('Proposed motion is out of range - returning without motion.')
@@ -284,14 +324,19 @@ class TicStage(TicStepper):
         elif open_loop_assert:
             super()._moveAbsSteps(position_steps)
             if wait_for_motion:
-                self.wait_for_motion()
+                self.wait_for_motion(motion_tol_steps=tolerance, timeout=timeout)
             return True
         else:
             print('Motion range not known. If you wish to move anyway, please set "open_loop_assert" argument to "True".')
             return False
 
-    def moveRelSteps(self, steps, wait_for_motion = True, open_loop_assert = False) -> bool:
+    def moveRelSteps(self, steps, wait_for_motion=True, open_loop_assert=False, step_tolerance=None, 
+                        timeout=_TOLERANCE_EXCEPTION_TIMEOUT) -> bool:
         """Move a specified number of steps relative to the current position
+
+        If the stage does not reach its target location within the specified tolerance
+        (i.e it stops X steps before the target), this function will raise an exception
+        which must be handled by the user.
         
         Parameters
         ----------
@@ -305,16 +350,29 @@ class TicStage(TicStepper):
         open_loop_assert : bool 
             If true, the motion will be performed whether or not
             there is a motion range defined.
-        
+
+        step_tolerance : int
+            The desired step tolerance for the motion. If none, the default step tolerance 
+            (set during instantiation) will be used. Otherwise the provided step tolerance 
+            will be used.
+
+        timeout : float
+            Specifies the time (in s) before raising an error 
+            if the motor does not arrive to the target location within the specified tolerance. 
+            Defaults to 0.05s.
+
         Returns
         -------
-            Success/failure flag
+        Success/failure flag
         """
+        
+        tolerance = step_tolerance if step_tolerance is not None else _MOTION_TOL_STEPS
+
         if self._is_motion_range_known:
-            if self.isTargetValid(steps + self.position('steps')):
+            if self.isTargetValid(steps + self.getCurrentPositionSteps()):
                 super()._moveRelSteps(steps)
                 if wait_for_motion:
-                    self.wait_for_motion()
+                    self.wait_for_motion(motion_tol_steps=tolerance, timeout=timeout)
                 return True
             else:
                 print('Proposed motion is out of range. Please try a smaller move.')
@@ -322,13 +380,14 @@ class TicStage(TicStepper):
         elif open_loop_assert:
             super()._moveRelSteps(steps)
             if wait_for_motion:
-                    self.wait_for_motion()
+                    self.wait_for_motion(motion_tol_steps=tolerance, timeout=timeout)
             return True
         else:
             print('Motion range not known. If you wish to move anyway, please set "open_loop_assert" to "True".')
             return False
 
-    def moveToIndexedPosition(self, index, wait=True, open_loop_assert=False):
+    def moveToIndexedPosition(self, index, wait=True, open_loop_assert=False, step_tolerance=None, 
+                                timeout=_TOLERANCE_EXCEPTION_TIMEOUT):
         """Moves the stage to the specified indexed position.
         
         Parameters
@@ -340,27 +399,40 @@ class TicStage(TicStepper):
 
         wait : bool
             Flag whether to block command line during motion or not
+        
+        step_tolerance : int
+            The desired step tolerance for the motion. If none, the default step tolerance 
+            (set during instantiation) will be used. Otherwise the provided step tolerance 
+            will be used.
+
+        timeout : float
+            Specifies the time (in s) before raising an error 
+            if the motor does not arrive to the target location within the specified tolerance. 
+            Defaults to 0.05s.
 
         Returns
         -------
-            Success/failure flag
+        Success/failure flag
         """
+        
+        tolerance = step_tolerance if step_tolerance is not None else _MOTION_TOL_STEPS
 
         if index in list(self._index_positions.keys()):
-            self.moveAbsSteps(self._index_positions[index], wait, open_loop_assert=open_loop_assert)
+            self.moveAbsSteps(self._index_positions[index], wait, open_loop_assert=open_loop_assert,
+                                step_tolerance=tolerance, timeout=timeout)
         else:
             print('Index not valid!')
             return False
 
         return True
 
-    def moveToLimit(self, limit: str, max_steps=1E8, timeout_s = 60) -> bool:
-        """Move to either forward or reverse limit switch position.
+    def moveToLimit(self, limit: str, max_steps = _DEF_MAX_HOMING_STEPS, timeout_s = 60) -> bool:
+        """Move to either the forward or reverse limit switch position.
         
         Parameters
         ----------
         limit : string
-            string indicating direction: either 'fwd' or 'rev'
+            String indicating direction: either 'fwd' or 'rev'
         max_steps : int
             The maximum number of steps to take while searching for the limit switch
         timeout_s : int 
@@ -397,7 +469,7 @@ class TicStage(TicStepper):
         # Set default homing speed, accounting for microstepping factor
         self.setRotationSpeed(_DEF_HOME_SPD_STEPS_PER_SEC*self._micro_step_factor)
         elapsed_time = 0
-        initial_position = self.position('steps')
+        initial_position = self.getCurrentPositionSteps()
         current_position = initial_position
         # Start moving, and poll the TicStepper limit switch during motion
         t1 = time()
@@ -408,14 +480,13 @@ class TicStage(TicStepper):
         #   - How much time has gone by
         #   - If the limit switch has been reached
         limit_active = False
+        
         while (elapsed_time < timeout_s) and \
         (abs(current_position - initial_position) < abs(max_steps)) and not \
         limit_active:
-            current_position = self.position('steps')
-            #print('Current position = ' + str(current_position))
+            current_position = self.getCurrentPositionSteps()
             elapsed_time = time() - t1
             limit_active = self.isLimitActive(limit)
-            #print('Limit active: ' + str(limit_active))
             sleep(_WFM_PAUSE)
 
         return True
@@ -490,7 +561,7 @@ class TicStage(TicStepper):
         return True
 
     def setRotationSpeed(self, steps_per_second) -> bool:
-        """Sets the rotation speed of the motor
+        """Sets the rotation speed of the motor.
         
         Parameters
         ----------
@@ -506,7 +577,7 @@ class TicStage(TicStepper):
             _ = int(steps_per_second)
         except:
             print('Input must be a number!')
-
+        
         if steps_per_second > self._max_speed_steps_per_second:
             print('steps_per_second is too large!')
             return False
@@ -530,7 +601,6 @@ class TicStage(TicStepper):
         print('Motion range known: ' + str(self._is_motion_range_known))
         print(f'Motion range: [{self._allowed_motion_range[0]},{self._allowed_motion_range[1]}]')
         print('Current position (steps): ' + str(self.getCurrentPositionSteps()) + '\n')
-
         
     def type(self):
         # Overloading type method to return a simplified string
@@ -555,20 +625,57 @@ class TicStage(TicStepper):
             self._allowed_motion_range[1] = 0
             return False
 
-    def wait_for_motion(self, motion_tol_steps = _MOTION_TOL_STEPS):
-        """Blocks execution until the stage reaches its target"""
+    def wait_for_motion(self, motion_tol_steps, timeout):
+        """Blocks execution until the stage reaches its target
+        
+        If the stage does not reach its target location within the specified tolerance
+        (i.e it stops X steps before the target), this function will raise an exception
+        which must be handled by the user.
+
+        Parameters
+        ----------
+        motion_tol_steps : int
+            Tolerance in number of steps between motor position and desired position
+            
+        timeout : float
+            Specifies the time (in s) before raising an error 
+            if the motor does not arrive to the target location within the specified tolerance. 
+            Defaults to 0.05s.
+        
+        """
+
+        # Additional tolerance that will only be checked if a timeout is specified
+        # This is to prevent an infinite loop in case the motor gets stuck
+        num_prev_to_keep = 10
+        prev_positions = [None] * num_prev_to_keep
+        is_stuck = False
 
         print('TicStage: In motion...')
         sleep(_WFM_PAUSE)
+
+        # Bring motor to within the desired number of tolerance steps
         while abs(self.getCurrentPositionSteps() - self._target_steps) > motion_tol_steps:
             sleep(_WFM_PAUSE)
+            print(f"Steps to dest: {self.getCurrentPositionSteps() - self._target_steps}")
+            print(f"Allowable: {_MAX_ALLOWABLE_TOLERANCE}")
 
-        timer_start = time()
+            if (motion_tol_steps < abs(self.getCurrentPositionSteps() - self._target_steps) < _MAX_ALLOWABLE_TOLERANCE):
 
-        while ((time() - timer_start < _STEADY_POSITION_TIMEOUT) and 
-                (self.getCurrentPositionSteps != self._target_steps)):
-            sleep(_WFM_PAUSE)
+                # Manual method of checking if motor is stopped
+                prev_positions.append(self.getCurrentPositionSteps())
+                prev_positions = prev_positions[-num_prev_to_keep:]
+
+                if ( prev_positions.count(prev_positions[0]) == len(prev_positions) ) and not is_stuck: 
+                    start_time = time()
+                    is_stuck = True
+
+                if is_stuck and (time() - start_time) > timeout:
+                    raise Exception(f"Did not reach the specified position {self._target_steps} within the desired tolerance {motion_tol_steps}.")
         
+        sleep(_WFM_PAUSE*5)
+        print(f"Destination: \t{self._target_steps}")
+        print(f"Actual: \t{self.getCurrentPositionSteps()}")
+
     def __del__(self):
         """Ensures the stage is disabled upon deletion of the object"""
         
