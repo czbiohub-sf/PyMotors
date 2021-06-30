@@ -68,7 +68,11 @@ class StepperBase():
             self.rpm = self.rpm * new_to_old  # reset RPM for new micros
             self._setMicrostep(micros_per_full_step)
         else:
-            warnings.warn("Microstep value not available.")
+            warnings.warn(f"""
+                The given step_ratio={step_ratio} is not allowed. 
+                Allowable step ratios are: [1, 2, 4, 8] for the T500. 
+                See documentation: https://www.pololu.com/docs/0J71/8#cmd-set-target-velocity
+            """)
 
     @property
     def dist_per_min(self) -> float:
@@ -151,13 +155,14 @@ class StepperBase():
         rel_target_steps = self._convDistToSteps(rel_target_dist)
         self._moveRelSteps(rel_target_steps)
 
-    def position(self, unit_type: str) -> float:
+    def getPosition(self, unit_type: str) -> float:
         """Return current position in steps or dist.
 
         Parameters
         ----------
         type : str
-            The desired interpretation of the current position.
+            The desired interpretation of the current position 
+            ("steps" or "dist", case insensitive).
 
         Returns
         -------
@@ -174,7 +179,7 @@ class StepperBase():
 
     def isMoving(self) -> bool:
         """Motor has not arrived at commanded position."""
-        return self.position('steps') != self._target_steps
+        return self.getPosition('steps') != self._target_steps
 
     def stop(self):
         """Set position to target position.
@@ -234,6 +239,7 @@ class StepperBase():
 
     def _typeSorter(self, val_type: str) -> int:
         """Convert string to int."""
+
         ret = self._unit_type['UNKNOWN']
         if val_type in ('steps', 'Steps', 'STEPS'):
             ret = self._unit_type['STEPS']
@@ -246,8 +252,9 @@ class StepperBase():
     @staticmethod
     def _checkMicrostep(microstep: int) -> bool:
         """Check validity of microstep input."""
+
         ret = False
-        if microstep in (1, 2, 4, 8, 16):
+        if microstep in (1, 2, 4, 8):
             ret = True
         return ret
 
@@ -271,7 +278,7 @@ class StepperBase():
         return steps / self._micros_per_dist()
 
     def _convReltoAbs(self, rel_steps) -> int:
-        return self.position('steps') + rel_steps
+        return self.getPosition('steps') + rel_steps
 
     def _micros_per_dist(self) -> float:
         steps_per_dist = self.steps_per_rev / self.dist_per_rev

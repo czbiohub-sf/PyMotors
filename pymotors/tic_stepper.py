@@ -192,6 +192,9 @@ class TicStepper(StepperBase):
         else:
             warnings.warn('Expected `False` (disabled) or `True` (enable)')
 
+    def getCurrentPositionSteps(self):
+        return self.getPosition("steps")
+
     def halt(self):
         """Stop the motor abruptly at the current postition."""
         command_to_send = self._command_dict['haltAndHoldPosition']
@@ -264,11 +267,9 @@ class TicStepper(StepperBase):
         self.com.send(command_to_send, data)
         self._target_steps = positionSteps
 
-    def getCurrentPositionSteps(self):
-        return self.position('steps')
-
     def velocityControl(self, steps_per_10000s):
         """Set the motor to move at the specified velocity."""
+
         command_to_send = self._command_dict['sTargetVelocity']
         data = steps_per_10000s
         self.com.send(command_to_send, data)
@@ -285,6 +286,7 @@ class TicStepper(StepperBase):
 
     def _moveToTarget(self):
         """Communicate with Tic board to set target position in steps."""
+
         command_to_send = self._command_dict['sTargetPosition']
         data = self._target_steps
         self.com.send(command_to_send, data)
@@ -330,7 +332,17 @@ class TicStepper(StepperBase):
         self.com.send(command_to_send, data)
 
     def _setMicrostep(self, microstep: int):
-        """Communicate with the Tic board to set microsteps."""
+        """Communicate with the Tic board to set microsteps 
+        (this initialization is temporary and resets back to setting configuration
+        on reset/reinitialize command or microcontroller reset).
+        
+        Parameters
+        ----------
+        microsteps : int
+            Number of microsteps per full-step, allowable values
+            are 1, 2, 4, 8 for the T500 (https://www.pololu.com/docs/0J71/8#cmd-set-step-mode)
+        """
+
         self._microsteps_per_full_step = microstep
         command_to_send = self._command_dict['sStepMode']
         data = (microstep == 0b10) \
@@ -342,6 +354,7 @@ class TicStepper(StepperBase):
         """Communicate with the Tic board to set velocity in steps / 10000s."""
         command_to_send = self._command_dict['sMaxSpeed']
         data = speed * 10000
+        print(f"Speed: {speed}")
         self.com.send(command_to_send, data)
 
     def _getmotor_status(self) -> tuple:
