@@ -354,7 +354,6 @@ class TicStepper(StepperBase):
         """Communicate with the Tic board to set velocity in steps / 10000s."""
         command_to_send = self._command_dict['sMaxSpeed']
         data = speed * 10000
-        print(f"Speed: {speed}")
         self.com.send(command_to_send, data)
 
     def _getmotor_status(self) -> tuple:

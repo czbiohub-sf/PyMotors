@@ -35,7 +35,7 @@ _DEF_MAX_SPD_STEPS_PER_SEC = 500     # If microstepping, refers to microsteps/se
 _WFM_PAUSE = 0.01
 _TOLERANCE_EXCEPTION_TIMEOUT = 0.05
 _MAX_ALLOWABLE_TOLERANCE = 5
-_SLEEP_BEFORE_HOMING_S = 3
+_SLEEP_BEFORE_HOMING_S = 1.5
 _HOMING_WAIT_TIME = 0.2
 _IDENTITY = 'TicStage'
 
@@ -93,13 +93,13 @@ class TicStage(TicStepper):
                  micro_step_factor=1,
                  default_step_tol=_MOTION_TOL_STEPS):
         super().__init__(com_type, port_params, address, input_dist_per_rev, input_steps_per_rev, input_rpm)
-
+        
         try:
             self._fwd_sw_present = self.checkLimitSwitch('fwd')
             self._rev_sw_present = self.checkLimitSwitch('rev')
             self.microsteps = 1/micro_step_factor
             self._micro_step_factor = micro_step_factor
-            _MOTION_TOL_STEPS = default_step_tol
+            self.motion_tol_steps = default_step_tol
             self.disable()
         except Exception as e:
             print('Failed to read properties from TicStepper object')
@@ -198,7 +198,7 @@ class TicStage(TicStepper):
             rev_pos = -float('inf')
 
         # Home the TicStepper, as this will set its current position to 0.
-        # Homing takes 20 ms (See step 4: https://www.pololu.com/docs/0J71/5.6)
+        # Homing takes 20 ms to set the byte (See step 4: https://www.pololu.com/docs/0J71/5.6)
         self.home('rev')
         sleep(_HOMING_WAIT_TIME)
 
@@ -309,7 +309,7 @@ class TicStage(TicStepper):
         Success/failure flag
         """
         
-        tolerance = step_tolerance if step_tolerance is not None else _MOTION_TOL_STEPS
+        tolerance = step_tolerance if step_tolerance is not None else self.motion_tol_steps
 
         if self._is_motion_range_known:
             if self.isTargetValid(position_steps):
@@ -365,7 +365,7 @@ class TicStage(TicStepper):
         Success/failure flag
         """
         
-        tolerance = step_tolerance if step_tolerance is not None else _MOTION_TOL_STEPS
+        tolerance = step_tolerance if step_tolerance is not None else self.motion_tol_steps
 
         if self._is_motion_range_known:
             if self.isTargetValid(steps + self.getCurrentPositionSteps()):
@@ -414,7 +414,7 @@ class TicStage(TicStepper):
         Success/failure flag
         """
         
-        tolerance = step_tolerance if step_tolerance is not None else _MOTION_TOL_STEPS
+        tolerance = step_tolerance if step_tolerance is not None else self.motion_tol_steps
 
         if index in list(self._index_positions.keys()):
             self.moveAbsSteps(self._index_positions[index], wait, open_loop_assert=open_loop_assert,
@@ -600,7 +600,7 @@ class TicStage(TicStepper):
         print('Motion range known: ' + str(self._is_motion_range_known))
         print(f'Motion range: [{self._allowed_motion_range[0]},{self._allowed_motion_range[1]}]')
         print('Current position (steps): ' + str(self.getCurrentPositionSteps()))
-        print(f"Step tolerance: {_MOTION_TOL_STEPS} \n")
+        print(f"Step tolerance: {self.motion_tol_steps} \n")
         
     def type(self):
         # Overloading type method to return a simplified string
@@ -656,8 +656,6 @@ class TicStage(TicStepper):
         # Bring motor to within the desired number of tolerance steps
         while abs(self.getCurrentPositionSteps() - self._target_steps) > motion_tol_steps:
             sleep(_WFM_PAUSE)
-            print(f"Steps to dest: {self.getCurrentPositionSteps() - self._target_steps}")
-            print(f"Allowable: {_MAX_ALLOWABLE_TOLERANCE}")
 
             if (motion_tol_steps < abs(self.getCurrentPositionSteps() - self._target_steps) < _MAX_ALLOWABLE_TOLERANCE):
 
