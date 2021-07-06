@@ -363,7 +363,7 @@ class TicStepper(StepperBase):
         -------
         A 3-Tuple with the various tic stage status responses.
         If an error occurs, returns False, False, False
-        See getAndParsemotor_status() for parsed output.
+        See getAndParseMotorStatus() for parsed output.
         """
 
         try:
@@ -377,7 +377,7 @@ class TicStepper(StepperBase):
 
         return misc_resp, err_resp, op_resp
 
-    def getAndParsemotor_status(self)-> dict:
+    def getAndParseMotorStatus(self)-> dict:
         """Gets all the status reports from the motor and translates them into english for printing/display
 
         Returns
@@ -411,7 +411,7 @@ class TicStepper(StepperBase):
     def print(self):
         """Print status of this object to the command line"""
 
-        motor_status = self.getAndParsemotor_status()
+        motor_status = self.getAndParseMotorStatus()
         print('\n------------------')
         print(_OBJECT_TYPE)
         print('------------------\n')
