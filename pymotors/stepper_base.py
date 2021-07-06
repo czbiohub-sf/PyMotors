@@ -68,7 +68,11 @@ class StepperBase():
             self.rpm = self.rpm * new_to_old  # reset RPM for new micros
             self._setMicrostep(micros_per_full_step)
         else:
-            warnings.warn("Microstep value not available.")
+            warnings.warn(f"""
+                The given step_ratio={step_ratio} is not allowed. 
+                Allowable step ratios are: [1, 2, 4, 8] for the T500. 
+                See documentation: https://www.pololu.com/docs/0J71/8#cmd-set-target-velocity
+            """)
 
     @property
     def dist_per_min(self) -> float:
@@ -115,8 +119,8 @@ class StepperBase():
         Notes
         -----
         Can be overridden to apply implementation specific hardware enabling.
-
         """
+
         if state == self._enable_states['DISABLED']:
             self._enable = self._enable_states['DISABLED']
         elif state == self._enable_states['ENABLED']:
@@ -124,36 +128,41 @@ class StepperBase():
         else:
             warnings.warn('Expected `False` (disabled) or `True` (enable)')
 
-    def moveAbsSteps(self, target_steps: int):
+    def _moveAbsSteps(self, target_steps: int):
         """Move to target step position."""
+    
         if self._enable:
             self._target_steps = target_steps
             self._moveToTarget()
         else:
             warnings.warn("Motor is not enabled and cannot move.")
 
-    def moveRelSteps(self, rel_target_steps: int):
+    def _moveRelSteps(self, rel_target_steps: int):
         """Move target steps away from current position."""
+    
         target_steps = round(self._convReltoAbs(rel_target_steps))
-        self.moveAbsSteps(target_steps)
+        self._moveAbsSteps(target_steps)
 
     def moveAbsDist(self, target_dist: float):
         """Move to target distance units away from 0."""
+
         target_steps = round(self._convDistToSteps(target_dist))
-        self.moveAbsSteps(target_steps)
+        self._moveAbsSteps(target_steps)
 
     def moveRelDist(self, rel_target_dist: float):
         """Move target distance units away from current position."""
+        
         rel_target_steps = self._convDistToSteps(rel_target_dist)
-        self.moveRelSteps(rel_target_steps)
+        self._moveRelSteps(rel_target_steps)
 
-    def position(self, unit_type: str) -> float:
+    def getPosition(self, unit_type: str) -> float:
         """Return current position in steps or dist.
 
         Parameters
         ----------
         type : str
-            The desired interpretation of the current position.
+            The desired interpretation of the current position 
+            ("steps" or "dist", case insensitive).
 
         Returns
         -------
@@ -170,7 +179,7 @@ class StepperBase():
 
     def isMoving(self) -> bool:
         """Motor has not arrived at commanded position."""
-        return self.position('steps') != self._target_steps
+        return self.getPosition('steps') != self._target_steps
 
     def stop(self):
         """Set position to target position.
@@ -178,7 +187,7 @@ class StepperBase():
         Stops movement by setting current position to target position. Also,
         disable the motor to ignore queued movement commands.
         """
-        self.moveRelSteps(0)
+        self._moveRelSteps(0)
 
     def _moveToTarget(self):
         """
@@ -230,6 +239,7 @@ class StepperBase():
 
     def _typeSorter(self, val_type: str) -> int:
         """Convert string to int."""
+
         ret = self._unit_type['UNKNOWN']
         if val_type in ('steps', 'Steps', 'STEPS'):
             ret = self._unit_type['STEPS']
@@ -242,8 +252,9 @@ class StepperBase():
     @staticmethod
     def _checkMicrostep(microstep: int) -> bool:
         """Check validity of microstep input."""
+
         ret = False
-        if microstep in (1, 2, 4, 8, 16):
+        if microstep in (1, 2, 4, 8):
             ret = True
         return ret
 
@@ -267,7 +278,7 @@ class StepperBase():
         return steps / self._micros_per_dist()
 
     def _convReltoAbs(self, rel_steps) -> int:
-        return self.position('steps') + rel_steps
+        return self.getPosition('steps') + rel_steps
 
     def _micros_per_dist(self) -> float:
         steps_per_dist = self.steps_per_rev / self.dist_per_rev

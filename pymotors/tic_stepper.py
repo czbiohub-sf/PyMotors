@@ -8,7 +8,7 @@ be changed via I2C or serial - only variables can be.
 
 Recommended setups:
 Raspberry Pi with I2C or serial implmentation and bidirectional level shifters.
-PC with serial implementaiton and a USB-to-UART cable (5V TTL).
+PC with serial implementation and a USB-to-UART cable (5V TTL).
 
 """
 import warnings
@@ -23,6 +23,39 @@ except ImportError:
     print('Unable to import pyserial for Tic serial communication.')
 
 # pylint: disable=invalid-name
+
+# ---------------------------------------CONSTANTS-----------------------------------------------
+_MAX_RESP_BITS = 8
+_OBJECT_TYPE = "TicStage"
+
+# Uses bit flags
+_error_status_dict = {
+        0: "Intentionally de-energized",
+        1: "Motor driver error",
+        2: "Low VIN",
+        3: "Kill switch active",
+        4: "Required input invalid",
+        5: "Serial error",
+        6: "Command timeout",
+        7: "Safe start violation",
+        8: "ERR line high"}
+
+# Uses bit flags
+_misc_bit_dict = {
+        0: "Energized",
+        1: "Position uncertain",
+        2: "Forward limit active",
+        3: "Reverse limit active",
+        4: "Homing active"}
+
+# Uses a map from integer to status string
+_op_state_dict = {
+        0: "Reset",
+        2: "De-engergized",
+        4: "Soft error",
+        6: "Waiting for ERR line",
+        8: "Starting up",
+        10: "Normal"}
 
 
 class TicStepper(StepperBase):
@@ -159,6 +192,9 @@ class TicStepper(StepperBase):
         else:
             warnings.warn('Expected `False` (disabled) or `True` (enable)')
 
+    def getCurrentPositionSteps(self):
+        return self.getPosition("steps")
+
     def halt(self):
         """Stop the motor abruptly at the current postition."""
         command_to_send = self._command_dict['haltAndHoldPosition']
@@ -233,10 +269,11 @@ class TicStepper(StepperBase):
 
     def velocityControl(self, steps_per_10000s):
         """Set the motor to move at the specified velocity."""
+
         command_to_send = self._command_dict['sTargetVelocity']
         data = steps_per_10000s
         self.com.send(command_to_send, data)
-
+    
     def _comProtocol(self, com_type: str) -> int:
         """Determine communication protocol from user input."""
         if com_type in ('serial', 'ser', 'Serial'):
@@ -249,6 +286,7 @@ class TicStepper(StepperBase):
 
     def _moveToTarget(self):
         """Communicate with Tic board to set target position in steps."""
+
         command_to_send = self._command_dict['sTargetPosition']
         data = self._target_steps
         self.com.send(command_to_send, data)
@@ -294,7 +332,17 @@ class TicStepper(StepperBase):
         self.com.send(command_to_send, data)
 
     def _setMicrostep(self, microstep: int):
-        """Communicate with the Tic board to set microsteps."""
+        """Communicate with the Tic board to set microsteps 
+        (this initialization is temporary and resets back to setting configuration
+        on reset/reinitialize command or microcontroller reset).
+        
+        Parameters
+        ----------
+        microsteps : int
+            Number of microsteps per full-step, allowable values
+            are 1, 2, 4, 8 for the T500 (https://www.pololu.com/docs/0J71/8#cmd-set-step-mode)
+        """
+
         self._microsteps_per_full_step = microstep
         command_to_send = self._command_dict['sStepMode']
         data = (microstep == 0b10) \
@@ -307,6 +355,75 @@ class TicStepper(StepperBase):
         command_to_send = self._command_dict['sMaxSpeed']
         data = speed * 10000
         self.com.send(command_to_send, data)
+
+    def _getmotor_status(self) -> tuple:
+        """Poll the tic flag for position certainty
+
+        Returns
+        -------
+        A 3-Tuple with the various tic stage status responses.
+        If an error occurs, returns False, False, False
+        See getAndParseMotorStatus() for parsed output.
+        """
+
+        try:
+            misc_resp = self.com.send(self._command_dict['gVariable'], self._variable_dict['misc_flags1'])
+            err_resp = self.com.send(self._command_dict['gVariable'], self._variable_dict['error_status'])
+            op_resp = self.com.send(self._command_dict['gVariable'], self._variable_dict['operation_state'])
+        except Exception as e:
+            print("Error reading motor status")
+            print(e)
+            return False, False, False
+
+        return misc_resp, err_resp, op_resp
+
+    def getAndParseMotorStatus(self)-> dict:
+        """Gets all the status reports from the motor and translates them into english for printing/display
+
+        Returns
+        -------
+        motor_status : dict
+            Three item dictionary with OperationStatus, ErrorStatus, and PositionStatus.
+        """
+
+        # Poll the motor for statuses
+        misc_resp, err_resp, op_resp = self._getmotor_status()
+
+        # Parse the responses
+        misc_msg = list()
+        op_msg = list()
+        err_msg = list()
+        for i in range(_MAX_RESP_BITS):
+            if misc_resp[0] & 2**i:
+                misc_msg.append(_misc_bit_dict[i])
+            # op_resp format is not a bit lookup - they are just even integers
+            if op_resp[0] == 2*i:
+                op_msg.append(_op_state_dict[2*i])
+            if err_resp[0] & 2**i:
+                err_msg.append(_error_status_dict[i])
+
+        motor_status = {'OperationStatus': op_msg, \
+                       'ErrorStatus': err_msg, \
+                       'PositionStatus': misc_msg}
+
+        return motor_status
+
+    def print(self):
+        """Print status of this object to the command line"""
+
+        motor_status = self.getAndParseMotorStatus()
+        print('\n------------------')
+        print(_OBJECT_TYPE)
+        print('------------------\n')
+
+        print('TicStepper attributes:')
+        print('------------------\n')
+
+        for key in motor_status.keys():
+            print(key)
+            for value in motor_status[key]:
+                print('---------'+ value)
+        print('------------------\n')
 
     _com_protocol = {'SERIAL': 0, 'I2C': 1}
 
@@ -336,7 +453,7 @@ class TicStepper(StepperBase):
         }  # documentation: https://www.pololu.com/docs/0J71/8
 
     _variable_dict = \
-        {  # 'variable_key': [offset_address, bits_to_read]
+        {  # 'variable_key': [offset_address, bytes_to_read]
             'operation_state': [0x00, 1],
             'misc_flags1': [0x01, 1],
             'error_status': [0x02, 2],
@@ -346,8 +463,8 @@ class TicStepper(StepperBase):
             'target_velocity': [0x0E, 4],
             'starting_speed': [0x12, 4],
             'max_speed': [0x16, 4],
-            'max_accel': [0x1A, 4],
-            'max_decel': [0x1E, 4],
+            'max_decel': [0x1A, 4],
+            'max_accel': [0x1E, 4],
             'curr_position': [0x22, 4],
             'curr_velocity': [0x26, 4],
             'acting_tar_pos': [0x2A, 4],
@@ -369,10 +486,11 @@ class TicStepper(StepperBase):
             'last_driver_error': [0x55, 1],
         }  # documentation: https://www.pololu.com/docs/0J71/7
 
+
     _setting_dict = \
         {
-            'limit_switch_fwd': [0x5F, 8],
-            'limit_switch_rev': [0x60, 8],
+            'limit_switch_fwd': [0x5F, 1],
+            'limit_switch_rev': [0x60, 1],
         }
 
 
