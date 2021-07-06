@@ -599,7 +599,8 @@ class TicStage(TicStepper):
         print('Reverse limit switch present: ' + str(self._rev_sw_present))
         print('Motion range known: ' + str(self._is_motion_range_known))
         print(f'Motion range: [{self._allowed_motion_range[0]},{self._allowed_motion_range[1]}]')
-        print('Current position (steps): ' + str(self.getCurrentPositionSteps()) + '\n')
+        print('Current position (steps): ' + str(self.getCurrentPositionSteps()))
+        print(f"Step tolerance: {_MOTION_TOL_STEPS} \n")
         
     def type(self):
         # Overloading type method to return a simplified string
