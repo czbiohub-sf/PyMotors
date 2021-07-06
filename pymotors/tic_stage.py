@@ -28,7 +28,6 @@ from .tic_stepper import TicStepper
 # ---------------------------------------CONSTANTS-----------------------------------------------
 _SOFTLIMIT_BUFFER_STEPS = 20
 _DEF_MAX_HOMING_STEPS = 1E8
-_DEF_MOVE_TIMEOUT_S = 1000
 _TIC_FWD_LIMIT_BIT = 2
 _TIC_REV_LIMIT_BIT = 3
 _DEF_HOME_SPD_STEPS_PER_SEC = 50    # Default homing speed
@@ -92,7 +91,7 @@ class TicStage(TicStepper):
                  input_rpm=1,
                  max_speed = _DEF_MAX_SPD_STEPS_PER_SEC, 
                  micro_step_factor=1,
-                 default_step_tol=3):
+                 default_step_tol=_MOTION_TOL_STEPS):
         super().__init__(com_type, port_params, address, input_dist_per_rev, input_steps_per_rev, input_rpm)
 
         try:

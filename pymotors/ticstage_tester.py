@@ -16,7 +16,7 @@ def main():
   # myTicStepper = TicStepper(_TIC_COM_MODE, [_TIC_COM, _TIC_BAUDRATE], _TIC_DEVICE_NUMBER)
   # myStage = TicStage(myTicStepper, 500, 8)
   # myStage.enable()
-  myStage = TicStage(_TIC_COM_MODE, [_TIC_COM, _TIC_BAUDRATE], _TIC_DEVICE_NUMBER, 500, 200, max_speed=30000, micro_step_factor=1, default_step_tol=2)
+  myStage = TicStage(_TIC_COM_MODE, [_TIC_COM, _TIC_BAUDRATE], _TIC_DEVICE_NUMBER, 500, 200, micro_step_factor=1, default_step_tol=2)
   myStage.setRotationSpeed(30000)
   myStage.enable = True
   # myStage.print()
