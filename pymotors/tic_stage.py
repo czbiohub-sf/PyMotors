@@ -670,9 +670,9 @@ class TicStage(TicStepper):
                 if is_stuck and (time() - start_time) > timeout:
                     raise Exception(f"Did not reach the specified position {self._target_steps} within the desired tolerance {motion_tol_steps}.")
         
+        # Found this delay empirically
+        # ensures that the target steps, and getCurrentPositionSteps() are the same
         sleep(_WFM_PAUSE*5)
-        print(f"Destination: \t{self._target_steps}")
-        print(f"Actual: \t{self.getCurrentPositionSteps()}")
 
     def __del__(self):
         """Ensures the stage is disabled upon deletion of the object"""
